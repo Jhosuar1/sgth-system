@@ -70,11 +70,11 @@ button.action {
 <body>
 
 <!-- LOGIN -->
-<div id="login" class="card" style="max-width:400px;margin:100px auto;">
+<div id="loginBox" class="card" style="max-width:400px;margin:100px auto;">
 <h2>SGTH</h2>
 <input id="email" placeholder="Email">
 <input id="password" type="password" placeholder="Password">
-<button onclick="login()">Ingresar</button>
+<button onclick="handleLogin()">Ingresar</button>
 </div>
 
 <!-- APP -->
@@ -94,18 +94,19 @@ button.action {
 
 <script>
 
+// ✅ SOLO UNA instancia de Supabase
 const supabase = window.supabase.createClient(
   "https://unlkizxltetrvaxgcidj.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGtpenhsdGV0cnZheGdjaWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNTAwMTQsImV4cCI6MjA5MjYyNjAxNH0.V-eCBIMHEERSEBkOX0b_MYiefDqqWlPO1llIaSkJuko" // pega tu key completa
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGtpenhsdGV0cnZheGdjaWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNTAwMTQsImV4cCI6MjA5MjYyNjAxNH0.V-eCBIMHEERSEBkOX0b_MYiefDqqWlPO1llIaSkJuko"
 );
 
 let role = "colaborador";
 
 /* LOGIN */
-async function login(){
+async function handleLogin(){
   const { data, error } = await supabase.auth.signInWithPassword({
-    email: email.value,
-    password: password.value
+    email: document.getElementById("email").value,
+    password: document.getElementById("password").value
   });
 
   if(error) return alert("Login incorrecto");
@@ -118,8 +119,8 @@ async function login(){
 
   role = perfil?.role || "colaborador";
 
-  login.style.display="none";
-  app.style.display="flex";
+  document.getElementById("loginBox").style.display="none";
+  document.getElementById("app").style.display="flex";
 
   view("dashboard");
 }
@@ -137,10 +138,10 @@ async function dashboard(){
   const { data: e } = await supabase.from("empleados").select("*");
   const { data: n } = await supabase.from("novedades").select("*");
 
-  content.innerHTML = `
+  document.getElementById("content").innerHTML = `
   <div class="grid">
-    <div class="card">Empleados<br><h1>${e.length}</h1></div>
-    <div class="card">Novedades<br><h1>${n.length}</h1></div>
+    <div class="card">Empleados<br><h1>${e?.length || 0}</h1></div>
+    <div class="card">Novedades<br><h1>${n?.length || 0}</h1></div>
     <div class="card">Rol<br><h1>${role}</h1></div>
   </div>
   `;
@@ -150,7 +151,7 @@ async function dashboard(){
 async function empleados(){
   const { data } = await supabase.from("empleados").select("*");
 
-  content.innerHTML = `
+  document.getElementById("content").innerHTML = `
   <div class="card">
     <h3>Nuevo empleado</h3>
     <input id="n" placeholder="Nombre">
@@ -172,9 +173,9 @@ async function empleados(){
 
 async function crearEmp(){
   await supabase.from("empleados").insert([{
-    nombre:n.value,
-    cargo:c.value,
-    salario:s.value
+    nombre:document.getElementById("n").value,
+    cargo:document.getElementById("c").value,
+    salario:document.getElementById("s").value
   }]);
   empleados();
 }
@@ -185,8 +186,8 @@ async function delEmp(id){
 }
 
 /* NOMINA */
-async function nomina(){
-  content.innerHTML = `
+function nomina(){
+  document.getElementById("content").innerHTML = `
   <div class="card">
     <h3>Novedad</h3>
     <input id="idemp" placeholder="ID empleado">
@@ -200,17 +201,17 @@ async function nomina(){
 
 async function crearNov(){
   await supabase.from("novedades").insert([{
-    empleado_id:idemp.value,
-    horas_extras:ex.value,
-    recargos:re.value,
-    auxilios:au.value
+    empleado_id:document.getElementById("idemp").value,
+    horas_extras:document.getElementById("ex").value,
+    recargos:document.getElementById("re").value,
+    auxilios:document.getElementById("au").value
   }]);
   alert("Guardado");
 }
 
 /* SEGURIDAD SOCIAL */
-async function ss(){
-  content.innerHTML = `
+function ss(){
+  document.getElementById("content").innerHTML = `
   <div class="card">
     <h3>Seguridad Social</h3>
     <input id="idemp2" placeholder="ID empleado">
@@ -224,10 +225,10 @@ async function ss(){
 
 async function crearSS(){
   await supabase.from("seguridad_social").insert([{
-    empleado_id:idemp2.value,
-    eps:eps.value,
-    arl:arl.value,
-    caja:caja.value
+    empleado_id:document.getElementById("idemp2").value,
+    eps:document.getElementById("eps").value,
+    arl:document.getElementById("arl").value,
+    caja:document.getElementById("caja").value
   }]);
   alert("Guardado");
 }
