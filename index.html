@@ -3,44 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <title>SGTH PRO</title>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
 <style>
 body {
   margin:0;
   font-family: Arial;
-  background: linear-gradient(135deg,#0f172a,#020617);
+  background: linear-gradient(135deg,#020617,#0f172a);
   color:white;
 }
-
-.container {
-  max-width:900px;
-  margin:auto;
-  padding:20px;
-}
-
+.container { max-width:900px; margin:auto; padding:20px; }
 .card {
   background: rgba(255,255,255,0.08);
   padding:20px;
   border-radius:12px;
   margin-bottom:20px;
 }
-
-input {
-  padding:8px;
-  margin:5px;
-  border-radius:6px;
-  border:none;
-}
-
+input { padding:8px; margin:5px; border-radius:6px; border:none; }
 button {
   padding:8px;
   background:#22c55e;
   color:white;
   border:none;
   border-radius:6px;
-  cursor:pointer;
 }
 </style>
 </head>
@@ -49,33 +34,31 @@ button {
 
 <div class="container">
 
-<!-- LOGIN -->
 <div id="loginBox" class="card">
-  <h2>Login</h2>
-  <input id="email" placeholder="Email">
-  <input id="password" type="password" placeholder="Password">
-  <button onclick="handleLogin()">Ingresar</button>
+<h2>Login</h2>
+<input id="email" placeholder="Email">
+<input id="password" type="password" placeholder="Password">
+<button onclick="login()">Ingresar</button>
 </div>
 
-<!-- APP -->
 <div id="app" style="display:none;">
 
 <div class="card">
-  <h2>Dashboard</h2>
-  <div id="stats"></div>
+<h2>Dashboard</h2>
+<div id="stats"></div>
 </div>
 
 <div class="card">
-  <h2>Empleado</h2>
-  <input id="nombre" placeholder="Nombre">
-  <input id="cargo" placeholder="Cargo">
-  <input id="salario" placeholder="Salario">
-  <button onclick="crear()">Guardar</button>
+<h2>Empleado</h2>
+<input id="nombre" placeholder="Nombre">
+<input id="cargo" placeholder="Cargo">
+<input id="salario" placeholder="Salario">
+<button onclick="crear()">Guardar</button>
 </div>
 
 <div class="card">
-  <h2>Lista</h2>
-  <div id="lista"></div>
+<h2>Lista</h2>
+<div id="lista"></div>
 </div>
 
 </div>
@@ -84,65 +67,52 @@ button {
 
 <script>
 
-// ⚠️ SOLO UNA VEZ
 const supabase = window.supabase.createClient(
   "https://unlkizxltetrvaxgcidj.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGtpenhsdGV0cnZheGdjaWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNTAwMTQsImV4cCI6MjA5MjYyNjAxNH0.V-eCBIMHEERSEBkOX0b_MYiefDqqWlPO1llIaSkJuko"
+  "PEGA_AQUI_TU_ANON_KEY"
 );
 
-// LOGIN
-async function handleLogin() {
-
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: document.getElementById("email").value,
-    password: document.getElementById("password").value
+async function login(){
+  const { error } = await supabase.auth.signInWithPassword({
+    email: email.value,
+    password: password.value
   });
 
-  if (error) {
-    alert("Error login");
-    return;
-  }
+  if(error) return alert("Error login");
 
-  document.getElementById("loginBox").style.display = "none";
-  document.getElementById("app").style.display = "block";
+  loginBox.style.display="none";
+  app.style.display="block";
 
   cargar();
 }
 
-// DASHBOARD
-async function cargar() {
+async function cargar(){
   const { data } = await supabase.from("empleados").select("*");
 
-  document.getElementById("stats").innerHTML =
-    "Total empleados: " + (data?.length || 0);
+  stats.innerHTML = "Empleados: " + (data?.length || 0);
 
-  const lista = document.getElementById("lista");
-  lista.innerHTML = "";
-
-  data.forEach(e => {
+  lista.innerHTML="";
+  data.forEach(e=>{
     lista.innerHTML += `
       <div>
         ${e.nombre} - ${e.cargo}
-        <button onclick="eliminar('${e.id}')">X</button>
+        <button onclick="del('${e.id}')">X</button>
       </div>
     `;
   });
 }
 
-// CREAR
-async function crear() {
+async function crear(){
   await supabase.from("empleados").insert([{
-    nombre: document.getElementById("nombre").value,
-    cargo: document.getElementById("cargo").value,
-    salario: document.getElementById("salario").value
+    nombre:nombre.value,
+    cargo:cargo.value,
+    salario:salario.value
   }]);
-
   cargar();
 }
 
-// ELIMINAR
-async function eliminar(id) {
-  await supabase.from("empleados").delete().eq("id", id);
+async function del(id){
+  await supabase.from("empleados").delete().eq("id",id);
   cargar();
 }
 
