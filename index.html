@@ -2,30 +2,45 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>SGTH PRO</title>
+<title>SGTH FIXED</title>
+
+<!-- SOLO UNA VEZ -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
 <style>
-body {
+body{
   margin:0;
-  font-family: Arial;
-  background: linear-gradient(135deg,#020617,#0f172a);
+  font-family:Arial;
+  background:#0f172a;
   color:white;
 }
-.container { max-width:900px; margin:auto; padding:20px; }
-.card {
-  background: rgba(255,255,255,0.08);
+
+.container{
+  max-width:800px;
+  margin:auto;
   padding:20px;
-  border-radius:12px;
+}
+
+.card{
+  background:#1e293b;
+  padding:20px;
+  border-radius:10px;
   margin-bottom:20px;
 }
-input { padding:8px; margin:5px; border-radius:6px; border:none; }
-button {
+
+input{
+  padding:8px;
+  margin:5px;
+  border:none;
+  border-radius:5px;
+}
+
+button{
   padding:8px;
   background:#22c55e;
-  color:white;
   border:none;
-  border-radius:6px;
+  border-radius:5px;
+  color:white;
 }
 </style>
 </head>
@@ -35,30 +50,25 @@ button {
 <div class="container">
 
 <div id="loginBox" class="card">
-<h2>Login</h2>
-<input id="email" placeholder="Email">
-<input id="password" type="password" placeholder="Password">
-<button onclick="login()">Ingresar</button>
+  <h2>Login</h2>
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Password">
+  <button onclick="loginUser()">Entrar</button>
 </div>
 
 <div id="app" style="display:none;">
 
 <div class="card">
-<h2>Dashboard</h2>
-<div id="stats"></div>
+  <h2>Empleados</h2>
+  <input id="nombre" placeholder="Nombre">
+  <input id="cargo" placeholder="Cargo">
+  <input id="salario" placeholder="Salario">
+  <button onclick="crearEmpleado()">Guardar</button>
 </div>
 
 <div class="card">
-<h2>Empleado</h2>
-<input id="nombre" placeholder="Nombre">
-<input id="cargo" placeholder="Cargo">
-<input id="salario" placeholder="Salario">
-<button onclick="crear()">Guardar</button>
-</div>
-
-<div class="card">
-<h2>Lista</h2>
-<div id="lista"></div>
+  <h2>Lista</h2>
+  <div id="lista"></div>
 </div>
 
 </div>
@@ -72,46 +82,54 @@ const supabase = window.supabase.createClient(
   "PEGA_AQUI_TU_ANON_KEY"
 );
 
-async function login(){
+/* LOGIN */
+async function loginUser(){
   const { error } = await supabase.auth.signInWithPassword({
-    email: email.value,
-    password: password.value
+    email: document.getElementById("email").value,
+    password: document.getElementById("password").value
   });
 
-  if(error) return alert("Error login");
+  if(error){
+    alert("Error login");
+    return;
+  }
 
-  loginBox.style.display="none";
-  app.style.display="block";
+  document.getElementById("loginBox").style.display="none";
+  document.getElementById("app").style.display="block";
 
   cargar();
 }
 
+/* CARGAR */
 async function cargar(){
   const { data } = await supabase.from("empleados").select("*");
 
-  stats.innerHTML = "Empleados: " + (data?.length || 0);
+  const lista = document.getElementById("lista");
+  lista.innerHTML = "";
 
-  lista.innerHTML="";
   data.forEach(e=>{
     lista.innerHTML += `
       <div>
         ${e.nombre} - ${e.cargo}
-        <button onclick="del('${e.id}')">X</button>
+        <button onclick="eliminar('${e.id}')">X</button>
       </div>
     `;
   });
 }
 
-async function crear(){
+/* CREAR */
+async function crearEmpleado(){
   await supabase.from("empleados").insert([{
-    nombre:nombre.value,
-    cargo:cargo.value,
-    salario:salario.value
+    nombre: document.getElementById("nombre").value,
+    cargo: document.getElementById("cargo").value,
+    salario: document.getElementById("salario").value
   }]);
+
   cargar();
 }
 
-async function del(id){
+/* ELIMINAR */
+async function eliminar(id){
   await supabase.from("empleados").delete().eq("id",id);
   cargar();
 }
