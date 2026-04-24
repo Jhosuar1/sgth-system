@@ -3,108 +3,92 @@
 <head>
 <meta charset="UTF-8">
 <title>SGTH PRO</title>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
 <style>
 body {
   margin:0;
-  font-family: 'Segoe UI';
-  background: linear-gradient(135deg,#0f172a,#1e293b);
+  font-family:'Segoe UI';
+  background: linear-gradient(135deg,#0f172a,#020617);
   color:white;
 }
 
-.container { max-width:1100px; margin:auto; padding:20px; }
+.app { display:flex; height:100vh; }
+
+.sidebar {
+  width:240px;
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(20px);
+  padding:20px;
+}
+
+.sidebar button {
+  width:100%;
+  margin:8px 0;
+  padding:10px;
+  background:none;
+  color:white;
+  border:1px solid rgba(255,255,255,0.2);
+  border-radius:8px;
+  cursor:pointer;
+}
+
+.main { flex:1; padding:20px; overflow:auto; }
 
 .card {
-  background: rgba(255,255,255,0.08);
-  backdrop-filter: blur(12px);
+  background: rgba(255,255,255,0.06);
   border-radius:15px;
   padding:20px;
   margin-bottom:20px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.5);
 }
 
-input, select {
-  padding:10px;
+input {
+  padding:8px;
   margin:5px;
-  border-radius:8px;
+  border-radius:6px;
   border:none;
 }
 
-button {
-  padding:10px 15px;
-  border:none;
-  border-radius:8px;
+button.action {
   background:#22c55e;
+  border:none;
+  padding:8px;
+  border-radius:6px;
   color:white;
   cursor:pointer;
 }
 
-button:hover { background:#16a34a; }
-
-.grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-
+.grid {
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:10px;
+}
 </style>
 </head>
 
 <body>
-<div class="container">
-
-<h1>SGTH</h1>
 
 <!-- LOGIN -->
-<div id="login" class="card">
-  <h2>Login</h2>
-  <input id="email" placeholder="Email">
-  <input id="password" type="password" placeholder="Password">
-  <button onclick="login()">Ingresar</button>
+<div id="login" class="card" style="max-width:400px;margin:100px auto;">
+<h2>SGTH</h2>
+<input id="email" placeholder="Email">
+<input id="password" type="password" placeholder="Password">
+<button onclick="login()">Ingresar</button>
 </div>
 
 <!-- APP -->
-<div id="app" style="display:none;">
+<div id="app" style="display:none;" class="app">
 
-<!-- DASHBOARD -->
-<div class="card">
-  <h2>Dashboard</h2>
-  <div id="stats"></div>
+<div class="sidebar">
+<h2>SGTH</h2>
+<button onclick="view('dashboard')">Dashboard</button>
+<button onclick="view('empleados')">Empleados</button>
+<button onclick="view('nomina')">Nómina</button>
+<button onclick="view('ss')">Seguridad Social</button>
 </div>
 
-<!-- EMPLEADOS -->
-<div class="card">
-  <h2>Empleado</h2>
-  <input id="nombre" placeholder="Nombre">
-  <input id="cargo" placeholder="Cargo">
-  <input id="salario" placeholder="Salario">
-  <input id="tipo" placeholder="Contrato">
-  <button onclick="crearEmpleado()">Guardar</button>
-</div>
-
-<div class="card">
-  <h2>Lista Empleados</h2>
-  <div id="empleados"></div>
-</div>
-
-<!-- NOMINA -->
-<div class="card">
-  <h2>Novedades Nómina</h2>
-  <input id="empId" placeholder="ID empleado">
-  <input id="extras" placeholder="Horas extras">
-  <input id="recargos" placeholder="Recargos">
-  <input id="auxilios" placeholder="Auxilios">
-  <button onclick="crearNovedad()">Guardar</button>
-</div>
-
-<!-- SEGURIDAD SOCIAL -->
-<div class="card">
-  <h2>Seguridad Social</h2>
-  <input id="empSS" placeholder="ID empleado">
-  <input id="eps" placeholder="EPS">
-  <input id="arl" placeholder="ARL">
-  <input id="caja" placeholder="Caja">
-  <button onclick="crearSS()">Guardar</button>
-</div>
-
-</div>
+<div class="main" id="content"></div>
 
 </div>
 
@@ -112,96 +96,140 @@ button:hover { background:#16a34a; }
 
 const supabase = window.supabase.createClient(
   "https://unlkizxltetrvaxgcidj.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGtpenhsdGV0cnZheGdjaWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNTAwMTQsImV4cCI6MjA5MjYyNjAxNH0.V-eCBIMHEERSEBkOX0b_MYiefDqqWlPO1llIaSkJuko" // anon public key
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGtpenhsdGV0cnZheGdjaWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNTAwMTQsImV4cCI6MjA5MjYyNjAxNH0.V-eCBIMHEERSEBkOX0b_MYiefDqqWlPO1llIaSkJuko" // pega tu key completa
 );
-);
 
-let user;
+let role = "colaborador";
 
-// LOGIN
-async function login() {
-  const email = email.value;
-  const password = password.value;
+/* LOGIN */
+async function login(){
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email.value,
+    password: password.value
+  });
 
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if(error) return alert("Login incorrecto");
 
-  if (error) return alert("Error login");
+  const { data: perfil } = await supabase
+    .from("usuarios")
+    .select("role")
+    .eq("user_id", data.user.id)
+    .single();
 
-  user = data.user;
+  role = perfil?.role || "colaborador";
 
-  document.getElementById("login").style.display="none";
-  document.getElementById("app").style.display="block";
+  login.style.display="none";
+  app.style.display="flex";
 
-  cargarTodo();
+  view("dashboard");
 }
 
-// DASHBOARD
-async function dashboard() {
-  const { data: empleados } = await supabase.from("empleados").select("*");
-  const { data: novedades } = await supabase.from("novedades").select("*");
+/* VISTAS */
+function view(v){
+  if(v==="dashboard") dashboard();
+  if(v==="empleados") empleados();
+  if(v==="nomina") nomina();
+  if(v==="ss") ss();
+}
 
-  document.getElementById("stats").innerHTML = `
-    Empleados: ${empleados.length} <br>
-    Novedades: ${novedades.length}
+/* DASHBOARD */
+async function dashboard(){
+  const { data: e } = await supabase.from("empleados").select("*");
+  const { data: n } = await supabase.from("novedades").select("*");
+
+  content.innerHTML = `
+  <div class="grid">
+    <div class="card">Empleados<br><h1>${e.length}</h1></div>
+    <div class="card">Novedades<br><h1>${n.length}</h1></div>
+    <div class="card">Rol<br><h1>${role}</h1></div>
+  </div>
   `;
 }
 
-// EMPLEADOS
-async function crearEmpleado() {
-  await supabase.from("empleados").insert([{
-    nombre: nombre.value,
-    cargo: cargo.value,
-    salario: salario.value,
-    tipo_contrato: tipo.value
-  }]);
-
-  cargarEmpleados();
-}
-
-async function cargarEmpleados() {
+/* EMPLEADOS */
+async function empleados(){
   const { data } = await supabase.from("empleados").select("*");
 
-  empleados.innerHTML = "";
+  content.innerHTML = `
+  <div class="card">
+    <h3>Nuevo empleado</h3>
+    <input id="n" placeholder="Nombre">
+    <input id="c" placeholder="Cargo">
+    <input id="s" placeholder="Salario">
+    <button class="action" onclick="crearEmp()">Guardar</button>
+  </div>
 
-  data.forEach(e=>{
-    empleados.innerHTML += `
-      <div class="card">
-        ${e.nombre} - ${e.cargo}
-        <button onclick="eliminarEmpleado('${e.id}')">Eliminar</button>
+  <div class="card">
+    ${data.map(e=>`
+      <div>
+        ${e.nombre} - ${e.cargo} - $${e.salario}
+        <button onclick="delEmp('${e.id}')">❌</button>
       </div>
-    `;
-  });
+    `).join("")}
+  </div>
+  `;
 }
 
-async function eliminarEmpleado(id) {
-  await supabase.from("empleados").delete().eq("id", id);
-  cargarEmpleados();
+async function crearEmp(){
+  await supabase.from("empleados").insert([{
+    nombre:n.value,
+    cargo:c.value,
+    salario:s.value
+  }]);
+  empleados();
 }
 
-// NOMINA
-async function crearNovedad() {
+async function delEmp(id){
+  await supabase.from("empleados").delete().eq("id",id);
+  empleados();
+}
+
+/* NOMINA */
+async function nomina(){
+  content.innerHTML = `
+  <div class="card">
+    <h3>Novedad</h3>
+    <input id="idemp" placeholder="ID empleado">
+    <input id="ex" placeholder="Extras">
+    <input id="re" placeholder="Recargos">
+    <input id="au" placeholder="Auxilios">
+    <button class="action" onclick="crearNov()">Guardar</button>
+  </div>
+  `;
+}
+
+async function crearNov(){
   await supabase.from("novedades").insert([{
-    empleado_id: empId.value,
-    horas_extras: extras.value,
-    recargos: recargos.value,
-    auxilios: auxilios.value
+    empleado_id:idemp.value,
+    horas_extras:ex.value,
+    recargos:re.value,
+    auxilios:au.value
   }]);
+  alert("Guardado");
 }
 
-// SEGURIDAD SOCIAL
-async function crearSS() {
+/* SEGURIDAD SOCIAL */
+async function ss(){
+  content.innerHTML = `
+  <div class="card">
+    <h3>Seguridad Social</h3>
+    <input id="idemp2" placeholder="ID empleado">
+    <input id="eps" placeholder="EPS">
+    <input id="arl" placeholder="ARL">
+    <input id="caja" placeholder="Caja">
+    <button class="action" onclick="crearSS()">Guardar</button>
+  </div>
+  `;
+}
+
+async function crearSS(){
   await supabase.from("seguridad_social").insert([{
-    empleado_id: empSS.value,
-    eps: eps.value,
-    arl: arl.value,
-    caja: caja.value
+    empleado_id:idemp2.value,
+    eps:eps.value,
+    arl:arl.value,
+    caja:caja.value
   }]);
-}
-
-// LOAD
-function cargarTodo() {
-  dashboard();
-  cargarEmpleados();
+  alert("Guardado");
 }
 
 </script>
