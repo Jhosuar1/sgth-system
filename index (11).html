@@ -1,0 +1,1643 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SGTH — Sistema de Gestión de Talento Humano</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #080c14; --surface: #0d1220; --surface2: #111827;
+      --border: rgba(255,255,255,0.07); --border-glow: rgba(56,189,248,0.35);
+      --text: #e2e8f0; --text-muted: #64748b;
+      --accent: #38bdf8; --accent2: #818cf8; --accent3: #34d399;
+      --danger: #f87171; --warn: #fbbf24;
+      --grad1: linear-gradient(135deg,#38bdf8,#818cf8);
+      --grad2: linear-gradient(135deg,#34d399,#38bdf8);
+      --grad3: linear-gradient(135deg,#f87171,#fbbf24);
+      --sidebar-w: 250px; --radius: 14px; --radius-sm: 8px;
+      --transition: 0.22s cubic-bezier(.4,0,.2,1);
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family:'Sora',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; overflow-x:hidden; }
+    body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
+      background: radial-gradient(ellipse 80% 50% at 10% 0%,rgba(56,189,248,0.07) 0%,transparent 60%),
+                  radial-gradient(ellipse 60% 40% at 90% 100%,rgba(129,140,248,0.07) 0%,transparent 60%); }
+
+    /* LOGIN */
+    #login-screen { display:flex; align-items:center; justify-content:center; min-height:100vh; position:relative; z-index:10; }
+    .login-card { background:rgba(13,18,32,0.85); border:1px solid var(--border); border-radius:24px; padding:48px 44px; width:100%; max-width:420px; backdrop-filter:blur(24px); box-shadow:0 30px 80px rgba(0,0,0,0.5); animation:fadeUp 0.5s ease; }
+    .login-logo { display:flex; align-items:center; gap:12px; margin-bottom:32px; }
+    .login-logo-icon { width:44px; height:44px; border-radius:12px; background:var(--grad1); display:flex; align-items:center; justify-content:center; font-size:22px; }
+    .login-logo h1 { font-size:18px; font-weight:700; background:var(--grad1); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .login-logo p { font-size:11px; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase; }
+    .login-title { font-size:26px; font-weight:700; margin-bottom:8px; }
+    .login-sub { font-size:14px; color:var(--text-muted); margin-bottom:32px; }
+    .login-error { background:rgba(248,113,113,0.1); border:1px solid rgba(248,113,113,0.3); border-radius:var(--radius-sm); padding:12px 16px; font-size:13px; color:var(--danger); margin-bottom:18px; display:none; }
+
+    /* FORMS */
+    .form-group { margin-bottom:16px; }
+    .form-group label { display:block; font-size:13px; font-weight:500; color:var(--text-muted); margin-bottom:8px; }
+    .form-group input, .form-group select, .form-group textarea {
+      width:100%; padding:11px 14px; background:rgba(255,255,255,0.04); border:1px solid var(--border);
+      border-radius:var(--radius-sm); color:var(--text); font-family:'Sora',sans-serif; font-size:14px;
+      transition:border-color var(--transition),box-shadow var(--transition); outline:none; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(56,189,248,0.12); }
+    .form-group select option { background:var(--surface2); }
+    .form-group textarea { resize:vertical; min-height:80px; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .form-row-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+    @media(max-width:560px){ .form-row,.form-row-3{ grid-template-columns:1fr; } }
+
+    /* BUTTONS */
+    .btn-primary { width:100%; padding:13px; background:var(--grad1); border:none; border-radius:var(--radius-sm); color:#fff; font-family:'Sora',sans-serif; font-size:15px; font-weight:600; cursor:pointer; transition:opacity var(--transition),transform var(--transition); }
+    .btn-primary:hover { opacity:0.9; transform:translateY(-1px); }
+    .btn-primary:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+    .btn-sm { padding:8px 16px; background:var(--grad1); border:none; border-radius:var(--radius-sm); color:#fff; font-family:'Sora',sans-serif; font-size:13px; font-weight:600; cursor:pointer; transition:opacity var(--transition),transform var(--transition); white-space:nowrap; }
+    .btn-sm:hover { opacity:0.85; transform:translateY(-1px); }
+    .btn-sm.green { background:var(--grad2); }
+    .btn-cancel { padding:10px 20px; background:transparent; border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-muted); font-family:'Sora',sans-serif; font-size:14px; cursor:pointer; transition:all var(--transition); }
+    .btn-cancel:hover { border-color:rgba(255,255,255,0.2); color:var(--text); }
+    .btn-danger-sm { padding:6px 12px; background:rgba(248,113,113,0.1); border:1px solid rgba(248,113,113,0.25); border-radius:6px; color:var(--danger); font-family:'Sora',sans-serif; font-size:12px; font-weight:500; cursor:pointer; transition:all var(--transition); }
+    .btn-danger-sm:hover { background:rgba(248,113,113,0.2); }
+    .btn-warn-sm { padding:6px 12px; background:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.25); border-radius:6px; color:var(--warn); font-family:'Sora',sans-serif; font-size:12px; font-weight:500; cursor:pointer; transition:all var(--transition); }
+    .btn-warn-sm:hover { background:rgba(251,191,36,0.2); }
+
+    /* APP LAYOUT */
+    #app { display:none; min-height:100vh; position:relative; z-index:10; }
+    .sidebar { position:fixed; left:0; top:0; bottom:0; width:var(--sidebar-w); background:rgba(13,18,32,0.95); border-right:1px solid var(--border); backdrop-filter:blur(20px); display:flex; flex-direction:column; z-index:100; padding:20px 14px; overflow-y:auto; }
+    .sidebar-logo { display:flex; align-items:center; gap:10px; padding:4px 8px 20px; border-bottom:1px solid var(--border); margin-bottom:16px; flex-shrink:0; }
+    .sidebar-logo-icon { width:34px; height:34px; border-radius:10px; background:var(--grad1); display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; }
+    .sidebar-logo-text h2 { font-size:13px; font-weight:700; background:var(--grad1); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .sidebar-logo-text p { font-size:10px; color:var(--text-muted); letter-spacing:0.8px; text-transform:uppercase; }
+    .nav-section-label { font-size:10px; font-weight:600; color:var(--text-muted); letter-spacing:1.2px; text-transform:uppercase; padding:0 8px; margin:14px 0 6px; display:block; }
+    .nav-item { display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:var(--radius-sm); font-size:13px; font-weight:500; color:var(--text-muted); cursor:pointer; transition:all var(--transition); user-select:none; margin-bottom:2px; border:1px solid transparent; }
+    .nav-item:hover { color:var(--text); background:rgba(255,255,255,0.04); }
+    .nav-item.active { color:var(--accent); background:rgba(56,189,248,0.08); border-color:rgba(56,189,248,0.15); }
+    .nav-icon { font-size:16px; width:20px; text-align:center; flex-shrink:0; }
+    .sidebar-footer { margin-top:auto; padding-top:14px; border-top:1px solid var(--border); flex-shrink:0; }
+    .user-pill { display:flex; align-items:center; gap:10px; padding:10px 11px; border-radius:var(--radius-sm); background:rgba(255,255,255,0.03); }
+    .user-avatar { width:30px; height:30px; border-radius:50%; background:var(--grad1); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; flex-shrink:0; }
+    .user-info p { font-size:12px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px; }
+    .user-info span { font-size:10px; color:var(--text-muted); }
+    .btn-logout { width:100%; margin-top:8px; padding:8px; background:rgba(248,113,113,0.08); border:1px solid rgba(248,113,113,0.2); border-radius:var(--radius-sm); color:var(--danger); font-family:'Sora',sans-serif; font-size:12px; font-weight:500; cursor:pointer; transition:all var(--transition); }
+    .btn-logout:hover { background:rgba(248,113,113,0.15); }
+    .main { margin-left:var(--sidebar-w); min-height:100vh; padding:28px 32px; }
+    .page-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:28px; gap:12px; }
+    .page-title { font-size:24px; font-weight:700; letter-spacing:-0.4px; }
+    .page-subtitle { font-size:13px; color:var(--text-muted); margin-top:4px; }
+    .header-actions { display:flex; gap:10px; flex-wrap:wrap; }
+
+    /* SECTIONS */
+    .section { display:none; animation:fadeUp 0.35s ease; }
+    .section.active { display:block; }
+
+    /* STAT CARDS */
+    .stat-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; margin-bottom:28px; }
+    .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; position:relative; overflow:hidden; transition:transform var(--transition),border-color var(--transition); }
+    .stat-card:hover { transform:translateY(-3px); border-color:var(--border-glow); }
+    .stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
+    .stat-card.blue::before { background:var(--grad1); }
+    .stat-card.green::before { background:var(--grad2); }
+    .stat-card.red::before { background:var(--grad3); }
+    .stat-card.purple::before { background:linear-gradient(135deg,#818cf8,#c084fc); }
+    .stat-card.orange::before { background:linear-gradient(135deg,#fb923c,#f59e0b); }
+    .stat-icon { width:40px; height:40px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:20px; margin-bottom:14px; }
+    .stat-card.blue .stat-icon { background:rgba(56,189,248,0.12); }
+    .stat-card.green .stat-icon { background:rgba(52,211,153,0.12); }
+    .stat-card.red .stat-icon { background:rgba(248,113,113,0.12); }
+    .stat-card.purple .stat-icon { background:rgba(129,140,248,0.12); }
+    .stat-card.orange .stat-icon { background:rgba(251,146,60,0.12); }
+    .stat-value { font-size:32px; font-weight:700; font-family:'JetBrains Mono',monospace; letter-spacing:-1px; }
+    .stat-label { font-size:12px; color:var(--text-muted); margin-top:4px; }
+
+    /* CARD / TABLE */
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:24px; }
+    .card-header { padding:18px 22px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .card-title { font-size:15px; font-weight:600; }
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; }
+    thead th { padding:11px 18px; text-align:left; font-size:11px; font-weight:600; color:var(--text-muted); letter-spacing:0.8px; text-transform:uppercase; border-bottom:1px solid var(--border); background:rgba(255,255,255,0.02); white-space:nowrap; }
+    tbody td { padding:13px 18px; font-size:13px; border-bottom:1px solid rgba(255,255,255,0.04); }
+    tbody tr:last-child td { border-bottom:none; }
+    tbody tr:hover td { background:rgba(255,255,255,0.02); }
+
+    /* BADGES */
+    .badge { display:inline-flex; align-items:center; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:500; white-space:nowrap; }
+    .badge-green  { background:rgba(52,211,153,0.12);  color:var(--accent3); border:1px solid rgba(52,211,153,0.2); }
+    .badge-yellow { background:rgba(251,191,36,0.12);   color:var(--warn);    border:1px solid rgba(251,191,36,0.2); }
+    .badge-red    { background:rgba(248,113,113,0.12);  color:var(--danger);  border:1px solid rgba(248,113,113,0.2); }
+    .badge-blue   { background:rgba(56,189,248,0.12);   color:var(--accent);  border:1px solid rgba(56,189,248,0.2); }
+    .badge-purple { background:rgba(129,140,248,0.12);  color:var(--accent2); border:1px solid rgba(129,140,248,0.2); }
+    .badge-orange { background:rgba(251,146,60,0.12);   color:#fb923c;        border:1px solid rgba(251,146,60,0.2); }
+
+    /* MODAL */
+    .modal-overlay { display:none; position:fixed; inset:0; z-index:200; background:rgba(0,0,0,0.65); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:16px; }
+    .modal-overlay.open { display:flex; }
+    .modal { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:32px; width:100%; max-width:560px; max-height:92vh; overflow-y:auto; box-shadow:0 40px 100px rgba(0,0,0,0.6); animation:modalIn 0.3s cubic-bezier(.34,1.56,.64,1); }
+    .modal.modal-lg { max-width:720px; }
+    .modal-title { font-size:19px; font-weight:700; margin-bottom:22px; }
+    .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:24px; }
+
+    /* TABS */
+    .tabs { display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:22px; overflow-x:auto; }
+    .tab { padding:9px 16px; font-size:13px; font-weight:500; color:var(--text-muted); cursor:pointer; border-bottom:2px solid transparent; transition:all var(--transition); white-space:nowrap; }
+    .tab:hover { color:var(--text); }
+    .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+    /* EMPTY & LOADER */
+    .empty-state { padding:48px 24px; text-align:center; color:var(--text-muted); }
+    .empty-icon { font-size:42px; margin-bottom:14px; opacity:0.5; }
+    .empty-state h3 { font-size:15px; font-weight:600; margin-bottom:7px; color:var(--text); opacity:0.7; }
+    .empty-state p { font-size:13px; }
+    .spinner { width:20px; height:20px; border:2px solid rgba(255,255,255,0.15); border-top-color:var(--accent); border-radius:50%; animation:spin 0.6s linear infinite; display:inline-block; }
+    .loader-row td { text-align:center; padding:32px; }
+
+    /* TOAST */
+    #toast-container { position:fixed; bottom:20px; right:20px; z-index:999; display:flex; flex-direction:column; gap:8px; }
+    .toast { padding:13px 18px; border-radius:var(--radius-sm); font-size:13px; font-weight:500; backdrop-filter:blur(12px); border:1px solid; animation:toastIn 0.3s ease; max-width:320px; }
+    .toast.success { background:rgba(52,211,153,0.15); border-color:rgba(52,211,153,0.3); color:var(--accent3); }
+    .toast.error   { background:rgba(248,113,113,0.15); border-color:rgba(248,113,113,0.3); color:var(--danger); }
+    .toast.info    { background:rgba(56,189,248,0.15);  border-color:rgba(56,189,248,0.3);  color:var(--accent); }
+
+    /* INFO BOX */
+    .info-box { background:rgba(56,189,248,0.06); border:1px solid rgba(56,189,248,0.18); border-radius:var(--radius-sm); padding:14px 16px; font-size:13px; color:var(--accent); margin-bottom:18px; line-height:1.6; }
+    .warn-box  { background:rgba(251,191,36,0.06);  border:1px solid rgba(251,191,36,0.18);  border-radius:var(--radius-sm); padding:14px 16px; font-size:13px; color:var(--warn);   margin-bottom:18px; line-height:1.6; }
+
+    /* DIVIDER */
+    .divider { height:1px; background:var(--border); margin:20px 0; }
+    .text-mono { font-family:'JetBrains Mono',monospace; font-size:12px; }
+    .text-right { text-align:right; }
+    .text-muted { color:var(--text-muted); }
+
+    /* SUMMARY ROW */
+    .summary-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; margin-bottom:20px; }
+    .summary-item { background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 14px; }
+    .summary-label { font-size:11px; color:var(--text-muted); margin-bottom:4px; }
+    .summary-value { font-size:16px; font-weight:600; font-family:'JetBrains Mono',monospace; }
+    .summary-value.green { color:var(--accent3); }
+    .summary-value.red   { color:var(--danger); }
+    .summary-value.blue  { color:var(--accent); }
+
+    /* TIMELINE */
+    .timeline { padding:0; list-style:none; }
+    .timeline-item { display:flex; gap:14px; padding-bottom:20px; position:relative; }
+    .timeline-item::before { content:''; position:absolute; left:17px; top:36px; bottom:0; width:1px; background:var(--border); }
+    .timeline-item:last-child::before { display:none; }
+    .tl-dot { width:34px; height:34px; border-radius:50%; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.3); display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+    .tl-body { flex:1; }
+    .tl-title { font-size:14px; font-weight:600; margin-bottom:3px; }
+    .tl-date  { font-size:12px; color:var(--text-muted); margin-bottom:6px; }
+    .tl-desc  { font-size:13px; color:var(--text-muted); line-height:1.6; }
+
+    /* PROGRESS BAR */
+    .progress-bar { height:6px; background:rgba(255,255,255,0.08); border-radius:6px; overflow:hidden; margin-top:8px; }
+    .progress-fill { height:100%; border-radius:6px; background:var(--grad1); transition:width 0.5s ease; }
+
+    /* CALIFICACION STARS */
+    .stars { display:flex; gap:4px; }
+    .star { font-size:18px; cursor:pointer; transition:transform 0.15s; }
+    .star:hover { transform:scale(1.2); }
+
+    @keyframes fadeUp  { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes modalIn { from{opacity:0;transform:scale(0.92)} to{opacity:1;transform:scale(1)} }
+    @keyframes toastIn { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
+    @keyframes spin    { to{transform:rotate(360deg)} }
+
+    @media(max-width:900px){
+      :root { --sidebar-w: 0px; }
+      .sidebar { transform:translateX(-250px); transition:transform var(--transition); }
+      .sidebar.mobile-open { transform:translateX(0); width:250px; }
+      .main { margin-left:0; padding:16px; }
+      .stat-grid { grid-template-columns:1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">👥</div>
+      <div><h1>SGTH</h1><p>Gestión de Talento Humano</p></div>
+    </div>
+    <h2 class="login-title">Bienvenido</h2>
+    <p class="login-sub">Inicia sesión para continuar</p>
+    <div id="login-error" class="login-error"></div>
+    <div class="form-group"><label>Correo electrónico</label><input type="email" id="login-email" placeholder="correo@empresa.com"/></div>
+    <div class="form-group"><label>Contraseña</label><input type="password" id="login-password" placeholder="••••••••"/></div>
+    <button class="btn-primary" id="btn-login" onclick="doLogin()">Iniciar sesión</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">👥</div>
+      <div class="sidebar-logo-text"><h2>SGTH</h2><p>Talento Humano</p></div>
+    </div>
+    <span class="nav-section-label">Principal</span>
+    <div class="nav-item active" onclick="showSection('dashboard')" id="nav-dashboard"><span class="nav-icon">📊</span>Dashboard</div>
+
+    <span class="nav-section-label">Selección</span>
+    <div class="nav-item" onclick="showSection('candidatos')" id="nav-candidatos"><span class="nav-icon">🔍</span>Candidatos</div>
+    <div class="nav-item" onclick="showSection('empleados')" id="nav-empleados"><span class="nav-icon">👤</span>Empleados</div>
+
+    <span class="nav-section-label">Nómina</span>
+    <div class="nav-item" onclick="showSection('novedades')" id="nav-novedades"><span class="nav-icon">📋</span>Novedades</div>
+    <div class="nav-item" onclick="showSection('nomina')" id="nav-nomina"><span class="nav-icon">💵</span>Liquidar Nómina</div>
+    <div class="nav-item" onclick="showSection('contratos')" id="nav-contratos"><span class="nav-icon">📄</span>Liq. Contratos</div>
+
+    <span class="nav-section-label">SS &amp; Bienestar</span>
+    <div class="nav-item" onclick="showSection('seguridad')" id="nav-seguridad"><span class="nav-icon">🛡️</span>Seguridad Social</div>
+    <div class="nav-item" onclick="showSection('aportes')" id="nav-aportes"><span class="nav-icon">📊</span>Planilla PILA</div>
+    <div class="nav-item" onclick="showSection('retiro')" id="nav-retiro"><span class="nav-icon">🚪</span>Retiro Personal</div>
+
+    <span class="nav-section-label">Desarrollo</span>
+    <div class="nav-item" onclick="showSection('capacitacion')" id="nav-capacitacion"><span class="nav-icon">📚</span>Capacitación</div>
+    <div class="nav-item" onclick="showSection('desempeno')" id="nav-desempeno"><span class="nav-icon">⭐</span>Desempeño</div>
+
+    <div class="sidebar-footer">
+      <div class="user-pill">
+        <div class="user-avatar" id="user-avatar">U</div>
+        <div class="user-info"><p id="user-email-display">usuario</p><span>Administrador</span></div>
+      </div>
+      <button class="btn-logout" onclick="doLogout()">🚪 Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <section class="section active" id="section-dashboard">
+      <div class="page-header">
+        <div><h1 class="page-title">Dashboard</h1><p class="page-subtitle">Resumen general del sistema</p></div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card blue">  <div class="stat-icon">👤</div><div class="stat-value" id="ds-empleados">—</div><div class="stat-label">Total Empleados</div></div>
+        <div class="stat-card green"> <div class="stat-icon">✅</div><div class="stat-value" id="ds-activos">—</div><div class="stat-label">Activos</div></div>
+        <div class="stat-card purple"><div class="stat-icon">🔍</div><div class="stat-value" id="ds-candidatos">—</div><div class="stat-label">Candidatos en proceso</div></div>
+        <div class="stat-card orange"><div class="stat-icon">📋</div><div class="stat-value" id="ds-novedades">—</div><div class="stat-label">Novedades mes</div></div>
+        <div class="stat-card red">   <div class="stat-icon">💵</div><div class="stat-value" id="ds-nomina">—</div><div class="stat-label">Nóminas liquidadas</div></div>
+        <div class="stat-card blue">  <div class="stat-icon">⭐</div><div class="stat-value" id="ds-eval">—</div><div class="stat-label">Evaluaciones pendientes</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Empleados recientes</span><button class="btn-sm" onclick="showSection('empleados')">Ver todos</button></div>
+        <div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Cargo</th><th>Contrato</th><th>Estado</th></tr></thead>
+        <tbody id="db-recent-emp"><tr class="loader-row"><td colspan="4"><span class="spinner"></span></td></tr></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Candidatos recientes</span><button class="btn-sm" onclick="showSection('candidatos')">Ver todos</button></div>
+        <div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Cargo aspirado</th><th>Etapa</th><th>Fecha</th></tr></thead>
+        <tbody id="db-recent-cand"><tr class="loader-row"><td colspan="4"><span class="spinner"></span></td></tr></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- CANDIDATOS -->
+    <section class="section" id="section-candidatos">
+      <div class="page-header">
+        <div><h1 class="page-title">Candidatos</h1><p class="page-subtitle">Proceso de selección y contratación</p></div>
+        <button class="btn-sm" onclick="openModal('modal-candidato')">＋ Nuevo candidato</button>
+      </div>
+      <div class="tabs">
+        <div class="tab active" onclick="filterCandidatos('Todos',this)">Todos</div>
+        <div class="tab" onclick="filterCandidatos('Preseleccionado',this)">Preseleccionados</div>
+        <div class="tab" onclick="filterCandidatos('Entrevista',this)">Entrevista</div>
+        <div class="tab" onclick="filterCandidatos('Pruebas',this)">Pruebas</div>
+        <div class="tab" onclick="filterCandidatos('Aprobado',this)">Aprobados</div>
+        <div class="tab" onclick="filterCandidatos('Rechazado',this)">Rechazados</div>
+      </div>
+      <div class="card">
+        <div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Cargo aspirado</th><th>Etapa</th><th>Documentos</th><th>Examen</th><th>Ref. laborales</th><th>Fecha</th><th>Acciones</th></tr></thead>
+        <tbody id="candidatos-body"><tr class="loader-row"><td colspan="8"><span class="spinner"></span></td></tr></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- EMPLEADOS -->
+    <section class="section" id="section-empleados">
+      <div class="page-header">
+        <div><h1 class="page-title">Empleados</h1><p class="page-subtitle">Gestión del personal activo</p></div>
+        <button class="btn-sm" onclick="openModal('modal-empleado')">＋ Nuevo empleado</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Cédula</th><th>Cargo</th><th>Salario</th><th>Contrato</th><th>Ingreso</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody id="empleados-body"><tr class="loader-row"><td colspan="8"><span class="spinner"></span></td></tr></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- NOVEDADES -->
+    <section class="section" id="section-novedades">
+      <div class="page-header">
+        <div><h1 class="page-title">Novedades de Nómina</h1><p class="page-subtitle">Horas extras, recargos, comisiones, incapacidades</p></div>
+        <button class="btn-sm" onclick="openModalNovedad()">＋ Registrar novedad</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap"><table><thead><tr><th>Empleado</th><th>Período</th><th>Tipo</th><th>H. Extras</th><th>Rec. Nocturno</th><th>Comisiones</th><th>Auxilios</th><th>Incapacidad</th><th>Acciones</th></tr></thead>
+        <tbody id="novedades-body"><tr class="loader-row"><td colspan="9"><span class="spinner"></span></td></tr></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- NÓMINA -->
+    <section class="section" id="section-nomina">
+      <div class="page-header">
+        <div><h1 class="page-title">Liquidación de Nómina</h1><p class="page-subtitle">Períodos quincenales</p></div>
+        <button class="btn-sm" onclick="openModal('modal-periodo')">＋ Crear período</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap"><table><thead><tr><th>Período</th><th>Fecha inicial</th><th>Fecha final</th><th>Empleados</th><th>Total devengado</th><th>Total deducido</th><th>Neto</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody id="periodos-body"><tr class="loader-row"><td colspan="9"><span class="spinner"></span></td></tr></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- LIQUIDACIÓN CONTRATOS -->
+    <section class="section" id="section-contratos">
+      <div class="page-header">
+        <div><h1 class="page-title">Liquidación de Contratos</h1><p class="page-subtitle">Prestaciones sociales por finalización</p></div>
+        <button class="btn-sm" onclick="openModalLiqContrato()">＋ Nueva liquidación</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap"><table><thead><tr><th>Empleado</th><th>Fecha ingreso</th><th>Fecha retiro</th><th>Prima</th><th>Cesantías</th><th>Int. cesantías</th><th>Vacaciones</th><th>Total</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody id="contratos-body"><tr class="loader-row"><td colspan="10"><span class="spinner"></span></td></tr></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- SEGURIDAD SOCIAL -->
+    <section class="section" id="section-seguridad">
+      <div class="page-header">
+        <div><h1 class="page-title">Seguridad Social</h1><p class="page-subtitle">EPS, ARL y Caja de Compensación</p></div>
+        <button class="btn-sm" onclick="openModalSeguridad()">＋ Registrar</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap"><table><thead><tr><th>Empleado</th><th>EPS</th><th>ARL</th><th>Caja</th><th>Pensión</th><th>Fecha afiliación</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody id="seguridad-body"><tr class="loader-row"><td colspan="8"><span class="spinner"></span></td></tr></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- PLANILLA PILA -->
+    <section class="section" id="section-aportes">
+      <div class="page-header">
+        <div><h1 class="page-title">Planilla PILA</h1><p class="page-subtitle">Aportes a seguridad social</p></div>
+        <button class="btn-sm" onclick="openModal('modal-pila')">＋ Generar planilla</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap"><table><thead><tr><th>Período</th><th>Empleados</th><th>Salud</th><th>Pensión</th><th>ARL</th><th>Caja Comp.</th><th>Total</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody id="pila-body"><tr class="loader-row"><td colspan="9"><span class="spinner"></span></td></tr></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- RETIRO -->
+    <section class="section" id="section-retiro">
+      <div class="page-header">
+        <div><h1 class="page-title">Retiro de Personal</h1><p class="page-subtitle">Proceso de desvinculación</p></div>
+        <button class="btn-sm" onclick="openModal('modal-retiro')">＋ Registrar retiro</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap"><table><thead><tr><th>Empleado</th><th>Motivo</th><th>Fecha retiro</th><th>Carta enviada</th><th>Examen retiro</th><th>Dotación</th><th>Certificación</th><th>Acciones</th></tr></thead>
+        <tbody id="retiro-body"><tr class="loader-row"><td colspan="8"><span class="spinner"></span></td></tr></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- CAPACITACIÓN -->
+    <section class="section" id="section-capacitacion">
+      <div class="page-header">
+        <div><h1 class="page-title">Capacitación</h1><p class="page-subtitle">Plan anual y registro de actividades</p></div>
+        <div class="header-actions">
+          <button class="btn-sm green" onclick="openModal('modal-plan-cap')">📅 Plan anual</button>
+          <button class="btn-sm" onclick="openModal('modal-capacitacion')">＋ Registrar capacitación</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Capacitaciones registradas</span></div>
+        <div class="table-wrap"><table><thead><tr><th>Tema</th><th>Tipo</th><th>Fecha</th><th>Instructor</th><th>Asistentes</th><th>Eficacia</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody id="cap-body"><tr class="loader-row"><td colspan="8"><span class="spinner"></span></td></tr></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- DESEMPEÑO -->
+    <section class="section" id="section-desempeno">
+      <div class="page-header">
+        <div><h1 class="page-title">Evaluación de Desempeño</h1><p class="page-subtitle">Período de prueba y evaluación anual</p></div>
+        <button class="btn-sm" onclick="openModalEval()">＋ Nueva evaluación</button>
+      </div>
+      <div class="tabs">
+        <div class="tab active" onclick="filterEval('Todos',this)">Todas</div>
+        <div class="tab" onclick="filterEval('Período de prueba',this)">Período de prueba</div>
+        <div class="tab" onclick="filterEval('Anual',this)">Anuales</div>
+        <div class="tab" onclick="filterEval('Pendiente',this)">Pendientes</div>
+      </div>
+      <div class="card">
+        <div class="table-wrap"><table><thead><tr><th>Empleado</th><th>Tipo</th><th>Calificación</th><th>Fecha</th><th>Evaluador</th><th>Compromisos</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody id="eval-body"><tr class="loader-row"><td colspan="8"><span class="spinner"></span></td></tr></tbody></table></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ===================== MODALS ===================== -->
+
+<!-- Modal Candidato -->
+<div class="modal-overlay" id="modal-candidato">
+  <div class="modal">
+    <h2 class="modal-title">Registrar Candidato</h2>
+    <div class="form-row">
+      <div class="form-group"><label>Nombre completo</label><input type="text" id="cand-nombre" placeholder="Juan Pérez"/></div>
+      <div class="form-group"><label>Cédula</label><input type="text" id="cand-cedula" placeholder="123456789"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Cargo al que aspira</label><input type="text" id="cand-cargo" placeholder="Asesor comercial"/></div>
+      <div class="form-group"><label>Celular</label><input type="text" id="cand-celular" placeholder="300..."/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Correo</label><input type="email" id="cand-email" placeholder="candidato@email.com"/></div>
+      <div class="form-group"><label>Etapa actual</label>
+        <select id="cand-etapa">
+          <option>Preseleccionado</option><option>Entrevista inicial</option>
+          <option>Entrevista gerencia</option><option>Pruebas psicotécnicas</option>
+          <option>Verificación referencias</option><option>Verificación antecedentes</option>
+          <option>Examen médico</option><option>Aprobado</option><option>Rechazado</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Documentos entregados</label>
+        <select id="cand-docs"><option value="No">No</option><option value="Parcial">Parcial</option><option value="Completo">Completo</option></select>
+      </div>
+      <div class="form-group"><label>Examen médico</label>
+        <select id="cand-examen"><option value="Pendiente">Pendiente</option><option value="Programado">Programado</option><option value="Apto">Apto</option><option value="No apto">No apto</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Referencias laborales</label>
+        <select id="cand-refs"><option value="Pendiente">Pendiente</option><option value="Verificadas">Verificadas</option><option value="No aplica">No aplica</option></select>
+      </div>
+      <div class="form-group"><label>Fecha de registro</label><input type="date" id="cand-fecha"/></div>
+    </div>
+    <div class="form-group"><label>Observaciones</label><textarea id="cand-obs" placeholder="Anotaciones del proceso..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-candidato')">Cancelar</button>
+      <button class="btn-sm" onclick="saveCandidato()">Guardar candidato</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Empleado -->
+<div class="modal-overlay" id="modal-empleado">
+  <div class="modal modal-lg">
+    <h2 class="modal-title">Registrar Empleado</h2>
+    <div class="form-row">
+      <div class="form-group"><label>Nombre completo</label><input type="text" id="emp-nombre" placeholder="Juan Pérez"/></div>
+      <div class="form-group"><label>Cédula</label><input type="text" id="emp-cedula" placeholder="1234567890"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Cargo</label><input type="text" id="emp-cargo" placeholder="Asesor comercial"/></div>
+      <div class="form-group"><label>Salario básico</label><input type="number" id="emp-salario" placeholder="1300000"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Tipo de contrato</label>
+        <select id="emp-contrato">
+          <option>Término fijo</option><option>Término indefinido</option>
+          <option>Obra o labor</option><option>Prestación de servicios</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Tipo de nómina</label>
+        <select id="emp-tipo-nomina"><option value="Quincenal">Quincenal</option><option value="Mensual">Mensual</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Fecha de ingreso</label><input type="date" id="emp-ingreso"/></div>
+      <div class="form-group"><label>Centro de costo</label><input type="text" id="emp-centro" placeholder="Pereira Comercial"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Dirección</label><input type="text" id="emp-direccion" placeholder="Calle 1 # 2-3"/></div>
+      <div class="form-group"><label>Celular</label><input type="text" id="emp-celular" placeholder="300..."/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Correo</label><input type="email" id="emp-email-field" placeholder="empleado@email.com"/></div>
+      <div class="form-group"><label>Estado</label>
+        <select id="emp-estado"><option>Activo</option><option>Inactivo</option><option>Vacaciones</option><option>Licencia</option></select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-empleado')">Cancelar</button>
+      <button class="btn-sm" onclick="saveEmpleado()">Guardar empleado</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Novedad -->
+<div class="modal-overlay" id="modal-novedad">
+  <div class="modal">
+    <h2 class="modal-title">Registrar Novedad de Nómina</h2>
+    <div class="form-row">
+      <div class="form-group"><label>Empleado</label><select id="nov-empleado"></select></div>
+      <div class="form-group"><label>Período (YYYY-MM-Q)</label><input type="text" id="nov-periodo" placeholder="2024-01-1"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Tipo de novedad</label>
+        <select id="nov-tipo">
+          <option>Horas extras diurnas</option><option>Horas extras nocturnas</option>
+          <option>Recargo nocturno</option><option>Recargo dominical</option>
+          <option>Comisión</option><option>Bonificación</option>
+          <option>Auxilio de rodamiento</option><option>Auxilio de transporte</option>
+          <option>Incapacidad EPS</option><option>Incapacidad ARL</option>
+          <option>Descuento fondo empleados</option><option>Otro</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Fecha de novedad</label><input type="date" id="nov-fecha"/></div>
+    </div>
+    <div class="form-row-3">
+      <div class="form-group"><label>Horas extras</label><input type="number" id="nov-horas" placeholder="0" min="0"/></div>
+      <div class="form-group"><label>Recargo nocturno ($)</label><input type="number" id="nov-recargo" placeholder="0" min="0"/></div>
+      <div class="form-group"><label>Comisiones ($)</label><input type="number" id="nov-comisiones" placeholder="0" min="0"/></div>
+    </div>
+    <div class="form-row-3">
+      <div class="form-group"><label>Bonificaciones ($)</label><input type="number" id="nov-bonif" placeholder="0" min="0"/></div>
+      <div class="form-group"><label>Auxilios ($)</label><input type="number" id="nov-auxilios" placeholder="0" min="0"/></div>
+      <div class="form-group"><label>Días incapacidad</label><input type="number" id="nov-incap" placeholder="0" min="0"/></div>
+    </div>
+    <div class="form-group"><label>Observaciones</label><textarea id="nov-obs" placeholder="Detalles..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-novedad')">Cancelar</button>
+      <button class="btn-sm" onclick="saveNovedad()">Guardar novedad</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Período Nómina -->
+<div class="modal-overlay" id="modal-periodo">
+  <div class="modal modal-lg">
+    <h2 class="modal-title">Liquidar Período de Nómina</h2>
+    <div class="info-box">💡 El sistema calculará automáticamente devengado, deducciones y neto para todos los empleados activos según sus novedades del período.</div>
+    <div class="form-row">
+      <div class="form-group"><label>Nombre del período</label><input type="text" id="per-nombre" placeholder="Ej: Enero 2024 - 1ª Quincena"/></div>
+      <div class="form-group"><label>Tipo de nómina</label>
+        <select id="per-tipo"><option>Quincenal</option><option>Mensual</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Fecha inicial</label><input type="date" id="per-inicio"/></div>
+      <div class="form-group"><label>Fecha final</label><input type="date" id="per-fin"/></div>
+    </div>
+    <div class="form-group"><label>Fecha de pago</label><input type="date" id="per-pago"/></div>
+    <div id="preview-nomina" style="display:none;">
+      <div class="divider"></div>
+      <p style="font-size:13px;font-weight:600;margin-bottom:14px;color:var(--accent)">Vista previa de liquidación</p>
+      <div class="summary-row" id="preview-summary"></div>
+      <div class="table-wrap"><table><thead><tr><th>Empleado</th><th>Salario</th><th>Días</th><th>Extras</th><th>Bonos</th><th>Devengado</th><th>Salud</th><th>Pensión</th><th>Deducido</th><th>Neto</th></tr></thead>
+      <tbody id="preview-body"></tbody></table></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-periodo')">Cancelar</button>
+      <button class="btn-sm green" onclick="previewNomina()">👁 Vista previa</button>
+      <button class="btn-sm" id="btn-liquidar" onclick="liquidarNomina()" style="display:none">💵 Liquidar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Ver Desprendible -->
+<div class="modal-overlay" id="modal-desprendible">
+  <div class="modal modal-lg">
+    <h2 class="modal-title">Desprendible de Pago</h2>
+    <div id="desprendible-content"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-desprendible')">Cerrar</button>
+      <button class="btn-sm" onclick="printDesprendible()">🖨 Imprimir</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Liquidación Contrato -->
+<div class="modal-overlay" id="modal-liq-contrato">
+  <div class="modal modal-lg">
+    <h2 class="modal-title">Liquidación Definitiva de Contrato</h2>
+    <div class="form-row">
+      <div class="form-group"><label>Empleado</label><select id="lc-empleado" onchange="calcLiqContrato()"></select></div>
+      <div class="form-group"><label>Fecha de retiro</label><input type="date" id="lc-fecha-retiro" onchange="calcLiqContrato()"/></div>
+    </div>
+    <div class="form-group"><label>Motivo de retiro</label>
+      <select id="lc-motivo">
+        <option>Renuncia voluntaria</option><option>Terminación contrato fijo</option>
+        <option>Despido sin justa causa</option><option>Despido con justa causa</option>
+        <option>Mutuo acuerdo</option><option>Fallecimiento</option>
+      </select>
+    </div>
+    <div id="lc-preview" style="display:none;">
+      <div class="divider"></div>
+      <p style="font-size:13px;font-weight:600;margin-bottom:14px;color:var(--accent)">Cálculo de prestaciones sociales</p>
+      <div class="summary-row" id="lc-summary"></div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Concepto</th><th>Días</th><th>Base ($)</th><th>Valor ($)</th></tr></thead>
+        <tbody id="lc-detalle"></tbody>
+        <tfoot><tr><td colspan="3" style="padding:12px 18px;font-weight:600;text-align:right">TOTAL LIQUIDACIÓN</td><td id="lc-total" style="padding:12px 18px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--accent3)"></td></tr></tfoot>
+      </table></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-liq-contrato')">Cancelar</button>
+      <button class="btn-sm green" onclick="calcLiqContrato()">🧮 Calcular</button>
+      <button class="btn-sm" id="btn-guardar-liq" onclick="guardarLiqContrato()" style="display:none">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Seguridad Social -->
+<div class="modal-overlay" id="modal-seguridad">
+  <div class="modal">
+    <h2 class="modal-title">Registrar Seguridad Social</h2>
+    <div class="form-group"><label>Empleado</label><select id="seg-empleado"></select></div>
+    <div class="form-row">
+      <div class="form-group"><label>EPS</label><input type="text" id="seg-eps" placeholder="Sura, Nueva EPS, Coomeva..."/></div>
+      <div class="form-group"><label>ARL</label><input type="text" id="seg-arl" placeholder="AXA Colpatria, Positiva..."/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Caja de compensación</label><input type="text" id="seg-caja" placeholder="Comfamiliar, Cajasan..."/></div>
+      <div class="form-group"><label>Fondo de pensión</label><input type="text" id="seg-pension" placeholder="Porvenir, Protección..."/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Fecha de afiliación</label><input type="date" id="seg-fecha"/></div>
+      <div class="form-group"><label>Estado</label>
+        <select id="seg-estado"><option value="Activo">Activo</option><option value="Retirado">Retirado</option></select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-seguridad')">Cancelar</button>
+      <button class="btn-sm" onclick="saveSeguridad()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal PILA -->
+<div class="modal-overlay" id="modal-pila">
+  <div class="modal modal-lg">
+    <h2 class="modal-title">Generar Planilla PILA</h2>
+    <div class="info-box">📋 La planilla calcula automáticamente los aportes de salud (12.5%), pensión (16%), ARL y caja de compensación (4%) según el IBC de cada empleado.</div>
+    <div class="form-row">
+      <div class="form-group"><label>Año</label><input type="number" id="pila-anio" placeholder="2024" min="2020" max="2030"/></div>
+      <div class="form-group"><label>Mes</label>
+        <select id="pila-mes">
+          <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+          <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+          <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+          <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+        </select>
+      </div>
+    </div>
+    <div id="pila-preview" style="display:none;">
+      <div class="divider"></div>
+      <div class="summary-row" id="pila-summary"></div>
+      <div class="table-wrap"><table><thead><tr><th>Empleado</th><th>Cédula</th><th>IBC</th><th>Salud (12.5%)</th><th>Pensión (16%)</th><th>ARL</th><th>Caja (4%)</th><th>Total</th></tr></thead>
+      <tbody id="pila-detalle"></tbody></table></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-pila')">Cancelar</button>
+      <button class="btn-sm green" onclick="generarPILA()">📊 Calcular PILA</button>
+      <button class="btn-sm" id="btn-guardar-pila" onclick="guardarPILA()" style="display:none">💾 Guardar planilla</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Retiro -->
+<div class="modal-overlay" id="modal-retiro">
+  <div class="modal">
+    <h2 class="modal-title">Registrar Proceso de Retiro</h2>
+    <div class="form-row">
+      <div class="form-group"><label>Empleado</label><select id="ret-empleado"></select></div>
+      <div class="form-group"><label>Fecha de retiro</label><input type="date" id="ret-fecha"/></div>
+    </div>
+    <div class="form-group"><label>Motivo</label>
+      <select id="ret-motivo">
+        <option>Renuncia voluntaria</option><option>No renovación contrato fijo</option>
+        <option>Despido sin justa causa</option><option>Despido con justa causa</option>
+        <option>Mutuo acuerdo</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Carta notificación enviada</label><select id="ret-carta"><option value="No">No</option><option value="Sí">Sí</option></select></div>
+      <div class="form-group"><label>Examen de retiro</label><select id="ret-examen"><option value="Pendiente">Pendiente</option><option value="Programado">Programado</option><option value="Realizado">Realizado</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Dotación devuelta</label><select id="ret-dotacion"><option value="No">No</option><option value="Parcial">Parcial</option><option value="Completo">Completo</option></select></div>
+      <div class="form-group"><label>Certificación laboral</label><select id="ret-cert"><option value="Pendiente">Pendiente</option><option value="Emitida">Emitida</option></select></div>
+    </div>
+    <div class="form-group"><label>Observaciones</label><textarea id="ret-obs" placeholder="Notas del proceso de retiro..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-retiro')">Cancelar</button>
+      <button class="btn-sm" onclick="saveRetiro()">Guardar retiro</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Plan de Capacitación -->
+<div class="modal-overlay" id="modal-plan-cap">
+  <div class="modal">
+    <h2 class="modal-title">Plan de Capacitación Anual</h2>
+    <div class="form-row">
+      <div class="form-group"><label>Año</label><input type="number" id="pc-anio" placeholder="2024"/></div>
+      <div class="form-group"><label>Necesidad identificada desde</label>
+        <select id="pc-origen">
+          <option>Selección de personal</option><option>Evaluación de desempeño</option>
+          <option>Lider de proceso</option><option>Cambio en métodos</option>
+          <option>Nueva normatividad</option><option>Riesgo psicosocial</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Tema de capacitación</label><input type="text" id="pc-tema" placeholder="Servicio al cliente, seguridad..."/></div>
+    <div class="form-row">
+      <div class="form-group"><label>Fecha programada</label><input type="date" id="pc-fecha"/></div>
+      <div class="form-group"><label>Requiere evaluación de eficacia</label><select id="pc-eficacia"><option value="Sí">Sí</option><option value="No">No</option></select></div>
+    </div>
+    <div class="form-group"><label>Metodología de evaluación</label>
+      <select id="pc-metodo">
+        <option>Evaluación escrita</option><option>Prueba técnica</option>
+        <option>Taller práctico</option><option>Evaluación de desempeño</option>
+        <option>Concepto jefe inmediato</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-plan-cap')">Cancelar</button>
+      <button class="btn-sm" onclick="savePlanCap()">Guardar plan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Capacitación -->
+<div class="modal-overlay" id="modal-capacitacion">
+  <div class="modal">
+    <h2 class="modal-title">Registrar Capacitación</h2>
+    <div class="form-row">
+      <div class="form-group"><label>Tema</label><input type="text" id="cap-tema" placeholder="Atención al cliente..."/></div>
+      <div class="form-group"><label>Tipo</label>
+        <select id="cap-tipo"><option>Inducción</option><option>Reinducción</option><option>Entrenamiento</option><option>Capacitación</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Fecha</label><input type="date" id="cap-fecha"/></div>
+      <div class="form-group"><label>Instructor</label><input type="text" id="cap-instructor" placeholder="Nombre del instructor"/></div>
+    </div>
+    <div class="form-group"><label>Empleados asistentes (separados por coma)</label><input type="text" id="cap-asistentes" placeholder="Juan Pérez, Ana López..."/></div>
+    <div class="form-row">
+      <div class="form-group"><label>Resultado eficacia</label>
+        <select id="cap-eficacia"><option value="Pendiente">Pendiente</option><option value="Efectiva">Efectiva</option><option value="No efectiva">No efectiva</option></select>
+      </div>
+      <div class="form-group"><label>Estado</label>
+        <select id="cap-estado"><option>Programada</option><option>Realizada</option><option>Cancelada</option></select>
+      </div>
+    </div>
+    <div class="form-group"><label>Observaciones</label><textarea id="cap-obs" placeholder="Notas de la capacitación..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-capacitacion')">Cancelar</button>
+      <button class="btn-sm" onclick="saveCapacitacion()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Evaluación -->
+<div class="modal-overlay" id="modal-eval">
+  <div class="modal">
+    <h2 class="modal-title">Registrar Evaluación de Desempeño</h2>
+    <div class="form-row">
+      <div class="form-group"><label>Empleado</label><select id="eval-empleado"></select></div>
+      <div class="form-group"><label>Tipo de evaluación</label>
+        <select id="eval-tipo"><option>Período de prueba</option><option>Anual</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Fecha de evaluación</label><input type="date" id="eval-fecha"/></div>
+      <div class="form-group"><label>Evaluador</label><input type="text" id="eval-evaluador" placeholder="Nombre del evaluador"/></div>
+    </div>
+    <div class="form-group"><label>Calificación (1 a 5 estrellas)</label>
+      <div class="stars" id="eval-stars-ui">
+        <span class="star" onclick="setEvalStar(1)" data-v="1">☆</span>
+        <span class="star" onclick="setEvalStar(2)" data-v="2">☆</span>
+        <span class="star" onclick="setEvalStar(3)" data-v="3">☆</span>
+        <span class="star" onclick="setEvalStar(4)" data-v="4">☆</span>
+        <span class="star" onclick="setEvalStar(5)" data-v="5">☆</span>
+      </div>
+      <input type="hidden" id="eval-calificacion" value="0"/>
+    </div>
+    <div class="form-group"><label>Fortalezas observadas</label><textarea id="eval-fortalezas" placeholder="Puntos fuertes del colaborador..."></textarea></div>
+    <div class="form-group"><label>Compromisos de mejora</label><textarea id="eval-compromisos" placeholder="Planes de acción acordados..."></textarea></div>
+    <div class="form-group"><label>Estado</label>
+      <select id="eval-estado"><option>Pendiente</option><option>Realizada</option><option>Aprobada</option></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-eval')">Cancelar</button>
+      <button class="btn-sm" onclick="saveEval()">Guardar evaluación</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- ===================== JAVASCRIPT ===================== -->
+<script>
+// ─────────────────────────────────────────────
+// SUPABASE CONFIG
+// ─────────────────────────────────────────────
+const SUPABASE_URL  = 'https://unlkizxltetrvaxgcidj.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVubGtpenhsdGV0cnZheGdjaWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNTAwMTQsImV4cCI6MjA5MjYyNjAxNH0.V-eCBIMHEERSEBkOX0b_MYiefDqqWlPO1llIaSkJuko';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+function toast(msg, type='info'){
+  const el=document.createElement('div');
+  el.className=`toast ${type}`; el.textContent=msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(()=>el.remove(),3800);
+}
+function fmt(v){ if(!v && v!==0) return '—'; return new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(v); }
+function fmtDate(d){ if(!d) return '—'; return new Date(d+'T12:00:00').toLocaleDateString('es-CO'); }
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function estadoBadge(e){
+  const m={'Activo':'badge-green','Inactivo':'badge-red','Vacaciones':'badge-yellow','Licencia':'badge-blue','Aprobado':'badge-green','Rechazado':'badge-red','Preseleccionado':'badge-blue','Entrevista':'badge-purple','Pruebas':'badge-orange','Realizada':'badge-green','Pendiente':'badge-yellow','Cancelada':'badge-red','Programada':'badge-blue','Efectiva':'badge-green','No efectiva':'badge-red'};
+  return `<span class="badge ${m[e]||'badge-blue'}">${e||'—'}</span>`;
+}
+function emptyRow(cols,icon,title,sub){ return `<tr><td colspan="${cols}"><div class="empty-state"><div class="empty-icon">${icon}</div><h3>${title}</h3><p>${sub}</p></div></td></tr>`; }
+
+document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{ if(e.target===o) o.classList.remove('open'); }));
+
+// ─────────────────────────────────────────────
+// AUTH
+// ─────────────────────────────────────────────
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-password').value;
+  const btn=document.getElementById('btn-login');
+  const errEl=document.getElementById('login-error');
+  if(!email||!pass){showLoginError('Completa todos los campos.'); return;}
+  btn.disabled=true; btn.textContent='Ingresando…'; errEl.style.display='none';
+  const {data,error}=await db.auth.signInWithPassword({email,password:pass});
+  if(error){ showLoginError(error.message.includes('Invalid')?'Correo o contraseña incorrectos.':error.message); btn.disabled=false; btn.textContent='Iniciar sesión'; return; }
+  initApp(data.user);
+}
+function showLoginError(msg){ const el=document.getElementById('login-error'); el.textContent=msg; el.style.display='block'; }
+async function doLogout(){
+  await db.auth.signOut();
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('btn-login').disabled=false;
+  document.getElementById('btn-login').textContent='Iniciar sesión';
+}
+db.auth.getSession().then(({data:{session}})=>{ if(session?.user) initApp(session.user); });
+document.getElementById('login-password').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+
+// ─────────────────────────────────────────────
+// INIT APP
+// ─────────────────────────────────────────────
+function initApp(user){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  const email=user.email||'';
+  document.getElementById('user-email-display').textContent=email;
+  document.getElementById('user-avatar').textContent=email.charAt(0).toUpperCase();
+  loadAll();
+}
+function loadAll(){
+  loadDashboard(); loadCandidatos(); loadEmpleados();
+  loadNovedades(); loadPeriodos(); loadContratos();
+  loadSeguridad(); loadPILA(); loadRetiro();
+  loadCapacitacion(); loadEval();
+}
+
+// ─────────────────────────────────────────────
+// NAVIGATION
+// ─────────────────────────────────────────────
+function showSection(name){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById(`section-${name}`).classList.add('active');
+  document.getElementById(`nav-${name}`).classList.add('active');
+}
+
+// ─────────────────────────────────────────────
+// DASHBOARD
+// ─────────────────────────────────────────────
+async function loadDashboard(){
+  const [
+    {count:ce},{count:ca},{count:cc},{count:cn},{count:cp},{count:ceval}
+  ] = await Promise.all([
+    db.from('empleados').select('*',{count:'exact',head:true}),
+    db.from('empleados').select('*',{count:'exact',head:true}).eq('estado','Activo'),
+    db.from('candidatos').select('*',{count:'exact',head:true}).not('etapa','in','("Aprobado","Rechazado")'),
+    db.from('novedades').select('*',{count:'exact',head:true}),
+    db.from('periodos_nomina').select('*',{count:'exact',head:true}),
+    db.from('evaluaciones_desempeno').select('*',{count:'exact',head:true}).eq('estado','Pendiente')
+  ]);
+  document.getElementById('ds-empleados').textContent=ce??0;
+  document.getElementById('ds-activos').textContent=ca??0;
+  document.getElementById('ds-candidatos').textContent=cc??0;
+  document.getElementById('ds-novedades').textContent=cn??0;
+  document.getElementById('ds-nomina').textContent=cp??0;
+  document.getElementById('ds-eval').textContent=ceval??0;
+
+  const [{data:reEmp},{data:reCand}]=await Promise.all([
+    db.from('empleados').select('nombre,cargo,tipo_contrato,estado').order('id',{ascending:false}).limit(5),
+    db.from('candidatos').select('nombre,cargo_aspirado,etapa,created_at').order('id',{ascending:false}).limit(5)
+  ]);
+  document.getElementById('db-recent-emp').innerHTML=reEmp?.length
+    ?reEmp.map(e=>`<tr><td>${e.nombre}</td><td>${e.cargo}</td><td><span class="badge badge-blue">${e.tipo_contrato}</span></td><td>${estadoBadge(e.estado)}</td></tr>`).join('')
+    :emptyRow(4,'👤','Sin empleados','Agrega el primer empleado');
+  document.getElementById('db-recent-cand').innerHTML=reCand?.length
+    ?reCand.map(c=>`<tr><td>${c.nombre}</td><td>${c.cargo_aspirado}</td><td>${estadoBadge(c.etapa)}</td><td>${fmtDate(c.created_at?.slice(0,10))}</td></tr>`).join('')
+    :emptyRow(4,'🔍','Sin candidatos','Inicia el proceso de selección');
+}
+
+// ─────────────────────────────────────────────
+// CANDIDATOS
+// ─────────────────────────────────────────────
+let allCandidatos=[];
+async function loadCandidatos(){
+  const {data,error}=await db.from('candidatos').select('*').order('id',{ascending:false});
+  if(error){toast('Error cargando candidatos','error');return;}
+  allCandidatos=data||[];
+  renderCandidatos(allCandidatos);
+}
+function renderCandidatos(data){
+  const tbody=document.getElementById('candidatos-body');
+  if(!data||!data.length){tbody.innerHTML=emptyRow(8,'🔍','Sin candidatos','Registra el primer candidato'); return;}
+  tbody.innerHTML=data.map(c=>`<tr>
+    <td><strong>${c.nombre}</strong><br><span class="text-muted" style="font-size:11px">${c.celular||''}</span></td>
+    <td>${c.cargo_aspirado}</td>
+    <td>${estadoBadge(c.etapa)}</td>
+    <td><span class="badge ${c.documentos==='Completo'?'badge-green':c.documentos==='Parcial'?'badge-yellow':'badge-red'}">${c.documentos||'No'}</span></td>
+    <td><span class="badge ${c.examen_medico==='Apto'?'badge-green':c.examen_medico==='No apto'?'badge-red':'badge-yellow'}">${c.examen_medico||'Pendiente'}</span></td>
+    <td><span class="badge ${c.referencias==='Verificadas'?'badge-green':'badge-yellow'}">${c.referencias||'Pendiente'}</span></td>
+    <td>${fmtDate(c.fecha_registro)}</td>
+    <td style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn-warn-sm" onclick="editCandidato(${c.id})">✏️</button>
+      <button class="btn-danger-sm" onclick="deleteCandidato(${c.id})">🗑</button>
+    </td>
+  </tr>`).join('');
+}
+function filterCandidatos(etapa,el){
+  document.querySelectorAll('#section-candidatos .tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderCandidatos(etapa==='Todos'?allCandidatos:allCandidatos.filter(c=>c.etapa&&c.etapa.includes(etapa)));
+}
+async function saveCandidato(){
+  const payload={
+    nombre:document.getElementById('cand-nombre').value.trim(),
+    cedula:document.getElementById('cand-cedula').value.trim(),
+    cargo_aspirado:document.getElementById('cand-cargo').value.trim(),
+    celular:document.getElementById('cand-celular').value.trim(),
+    email:document.getElementById('cand-email').value.trim(),
+    etapa:document.getElementById('cand-etapa').value,
+    documentos:document.getElementById('cand-docs').value,
+    examen_medico:document.getElementById('cand-examen').value,
+    referencias:document.getElementById('cand-refs').value,
+    fecha_registro:document.getElementById('cand-fecha').value||new Date().toISOString().slice(0,10),
+    observaciones:document.getElementById('cand-obs').value.trim()
+  };
+  if(!payload.nombre||!payload.cargo_aspirado){toast('Nombre y cargo son obligatorios','error'); return;}
+  const {error}=await db.from('candidatos').insert([payload]);
+  if(error){toast('Error: '+error.message,'error'); return;}
+  toast('Candidato registrado ✅','success'); closeModal('modal-candidato');
+  loadCandidatos(); loadDashboard();
+}
+async function editCandidato(id){
+  const c=allCandidatos.find(x=>x.id===id); if(!c) return;
+  document.getElementById('cand-nombre').value=c.nombre||'';
+  document.getElementById('cand-cedula').value=c.cedula||'';
+  document.getElementById('cand-cargo').value=c.cargo_aspirado||'';
+  document.getElementById('cand-celular').value=c.celular||'';
+  document.getElementById('cand-email').value=c.email||'';
+  document.getElementById('cand-etapa').value=c.etapa||'Preseleccionado';
+  document.getElementById('cand-docs').value=c.documentos||'No';
+  document.getElementById('cand-examen').value=c.examen_medico||'Pendiente';
+  document.getElementById('cand-refs').value=c.referencias||'Pendiente';
+  document.getElementById('cand-fecha').value=c.fecha_registro||'';
+  document.getElementById('cand-obs').value=c.observaciones||'';
+  // Override save to update
+  const btn=document.querySelector('#modal-candidato .btn-sm');
+  btn.onclick=async()=>{
+    const upd={nombre:document.getElementById('cand-nombre').value.trim(),etapa:document.getElementById('cand-etapa').value,documentos:document.getElementById('cand-docs').value,examen_medico:document.getElementById('cand-examen').value,referencias:document.getElementById('cand-refs').value,observaciones:document.getElementById('cand-obs').value.trim()};
+    const {error}=await db.from('candidatos').update(upd).eq('id',id);
+    if(error){toast('Error: '+error.message,'error'); return;}
+    toast('Candidato actualizado ✅','success'); closeModal('modal-candidato');
+    btn.onclick=saveCandidato; loadCandidatos(); loadDashboard();
+  };
+  openModal('modal-candidato');
+}
+async function deleteCandidato(id){
+  if(!confirm('¿Eliminar este candidato?')) return;
+  await db.from('candidatos').delete().eq('id',id);
+  toast('Candidato eliminado','info'); loadCandidatos(); loadDashboard();
+}
+
+// ─────────────────────────────────────────────
+// EMPLEADOS
+// ─────────────────────────────────────────────
+let allEmpleados=[];
+async function loadEmpleados(){
+  const {data,error}=await db.from('empleados').select('*').order('id',{ascending:false});
+  if(error){toast('Error cargando empleados','error'); return;}
+  allEmpleados=data||[];
+  const tbody=document.getElementById('empleados-body');
+  if(!allEmpleados.length){tbody.innerHTML=emptyRow(8,'👤','Sin empleados','Agrega el primer empleado'); return;}
+  tbody.innerHTML=allEmpleados.map(e=>`<tr>
+    <td><strong>${e.nombre}</strong></td>
+    <td class="text-mono">${e.cedula||'—'}</td>
+    <td>${e.cargo}</td>
+    <td class="text-mono">${fmt(e.salario)}</td>
+    <td><span class="badge badge-blue">${e.tipo_contrato}</span></td>
+    <td>${fmtDate(e.fecha_ingreso)}</td>
+    <td>${estadoBadge(e.estado)}</td>
+    <td style="display:flex;gap:6px"><button class="btn-danger-sm" onclick="deleteEmpleado(${e.id})">🗑</button></td>
+  </tr>`).join('');
+}
+async function saveEmpleado(){
+  const payload={
+    nombre:document.getElementById('emp-nombre').value.trim(),
+    cedula:document.getElementById('emp-cedula').value.trim(),
+    cargo:document.getElementById('emp-cargo').value.trim(),
+    salario:parseFloat(document.getElementById('emp-salario').value)||0,
+    tipo_contrato:document.getElementById('emp-contrato').value,
+    tipo_nomina:document.getElementById('emp-tipo-nomina').value,
+    fecha_ingreso:document.getElementById('emp-ingreso').value||null,
+    centro_costo:document.getElementById('emp-centro').value.trim(),
+    direccion:document.getElementById('emp-direccion').value.trim(),
+    celular:document.getElementById('emp-celular').value.trim(),
+    email:document.getElementById('emp-email-field').value.trim(),
+    estado:document.getElementById('emp-estado').value
+  };
+  if(!payload.nombre||!payload.cargo||!payload.salario){toast('Nombre, cargo y salario son obligatorios','error'); return;}
+  const {error}=await db.from('empleados').insert([payload]);
+  if(error){toast('Error: '+error.message,'error'); return;}
+  toast('Empleado registrado ✅','success'); closeModal('modal-empleado');
+  loadEmpleados(); loadDashboard();
+}
+async function deleteEmpleado(id){
+  if(!confirm('¿Eliminar empleado? Esta acción no se puede deshacer.')) return;
+  await db.from('empleados').delete().eq('id',id);
+  toast('Empleado eliminado','info'); loadEmpleados(); loadDashboard();
+}
+
+// ─────────────────────────────────────────────
+// NOVEDADES
+// ─────────────────────────────────────────────
+async function loadNovedades(){
+  const {data,error}=await db.from('novedades').select('*,empleados(nombre)').order('id',{ascending:false});
+  if(error){toast('Error novedades','error'); return;}
+  const tbody=document.getElementById('novedades-body');
+  if(!data||!data.length){tbody.innerHTML=emptyRow(9,'📋','Sin novedades','Registra la primera novedad'); return;}
+  tbody.innerHTML=data.map(n=>`<tr>
+    <td><strong>${n.empleados?.nombre||'—'}</strong></td>
+    <td class="text-mono">${n.periodo||'—'}</td>
+    <td><span class="badge badge-purple">${n.tipo_novedad||'—'}</span></td>
+    <td>${n.horas_extras??0} h</td>
+    <td>${fmt(n.recargo_nocturno)}</td>
+    <td>${fmt(n.comisiones)}</td>
+    <td>${fmt(n.auxilios)}</td>
+    <td>${n.dias_incapacidad??0} d</td>
+    <td><button class="btn-danger-sm" onclick="deleteNovedad(${n.id})">🗑</button></td>
+  </tr>`).join('');
+}
+async function openModalNovedad(){
+  const {data}=await db.from('empleados').select('id,nombre').eq('estado','Activo');
+  const sel=document.getElementById('nov-empleado');
+  sel.innerHTML=data?.length?data.map(e=>`<option value="${e.id}">${e.nombre}</option>`).join(''):'<option>Sin empleados activos</option>';
+  document.getElementById('nov-fecha').value=new Date().toISOString().slice(0,10);
+  openModal('modal-novedad');
+}
+async function saveNovedad(){
+  const payload={
+    empleado_id:parseInt(document.getElementById('nov-empleado').value),
+    periodo:document.getElementById('nov-periodo').value.trim(),
+    tipo_novedad:document.getElementById('nov-tipo').value,
+    fecha_novedad:document.getElementById('nov-fecha').value,
+    horas_extras:parseFloat(document.getElementById('nov-horas').value)||0,
+    recargo_nocturno:parseFloat(document.getElementById('nov-recargo').value)||0,
+    comisiones:parseFloat(document.getElementById('nov-comisiones').value)||0,
+    bonificaciones:parseFloat(document.getElementById('nov-bonif').value)||0,
+    auxilios:parseFloat(document.getElementById('nov-auxilios').value)||0,
+    dias_incapacidad:parseInt(document.getElementById('nov-incap').value)||0,
+    observaciones:document.getElementById('nov-obs').value.trim()
+  };
+  if(!payload.empleado_id){toast('Selecciona un empleado','error'); return;}
+  const {error}=await db.from('novedades').insert([payload]);
+  if(error){toast('Error: '+error.message,'error'); return;}
+  toast('Novedad registrada ✅','success'); closeModal('modal-novedad'); loadNovedades(); loadDashboard();
+}
+async function deleteNovedad(id){
+  if(!confirm('¿Eliminar novedad?')) return;
+  await db.from('novedades').delete().eq('id',id);
+  toast('Novedad eliminada','info'); loadNovedades();
+}
+
+// ─────────────────────────────────────────────
+// NÓMINA
+// ─────────────────────────────────────────────
+const SMLV=1300000; const AUX_TRANSPORTE=162000;
+const SALUD_EMP=0.04; const PENSION_EMP=0.04;
+
+async function loadPeriodos(){
+  const {data,error}=await db.from('periodos_nomina').select('*').order('id',{ascending:false});
+  if(error){toast('Error nómina','error'); return;}
+  const tbody=document.getElementById('periodos-body');
+  if(!data||!data.length){tbody.innerHTML=emptyRow(9,'💵','Sin períodos','Crea el primer período de nómina'); return;}
+  tbody.innerHTML=data.map(p=>`<tr>
+    <td><strong>${p.nombre}</strong></td>
+    <td>${fmtDate(p.fecha_inicio)}</td>
+    <td>${fmtDate(p.fecha_fin)}</td>
+    <td>${p.total_empleados||0}</td>
+    <td class="text-mono">${fmt(p.total_devengado)}</td>
+    <td class="text-mono" style="color:var(--danger)">${fmt(p.total_deducido)}</td>
+    <td class="text-mono" style="color:var(--accent3)">${fmt(p.total_neto)}</td>
+    <td>${estadoBadge(p.estado)}</td>
+    <td style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn-sm" style="padding:5px 10px;font-size:11px" onclick="verDesprendible(${p.id})">👁 Ver</button>
+      <button class="btn-danger-sm" onclick="deletePeriodo(${p.id})">🗑</button>
+    </td>
+  </tr>`).join('');
+}
+
+async function previewNomina(){
+  const ini=document.getElementById('per-inicio').value;
+  const fin=document.getElementById('per-fin').value;
+  if(!ini||!fin){toast('Define las fechas del período','error'); return;}
+  const {data:emps}=await db.from('empleados').select('*').eq('estado','Activo');
+  if(!emps||!emps.length){toast('No hay empleados activos','error'); return;}
+  const {data:novs}=await db.from('novedades').select('*').gte('fecha_novedad',ini).lte('fecha_novedad',fin);
+  const rows=[]; let tDev=0,tDed=0,tNet=0;
+  for(const emp of emps){
+    const eNovs=(novs||[]).filter(n=>n.empleado_id===emp.id);
+    const dias=document.getElementById('per-tipo').value==='Quincenal'?15:30;
+    const salarioPeriodo=emp.salario*(dias/30);
+    const auxT=emp.salario<=2*SMLV?AUX_TRANSPORTE*(dias/30):0;
+    const extras=eNovs.reduce((s,n)=>s+(n.horas_extras||0),0)*((emp.salario/240)*1.25);
+    const bonos=eNovs.reduce((s,n)=>s+(n.bonificaciones||0)+(n.comisiones||0)+(n.recargo_nocturno||0)+(n.auxilios||0),0);
+    const devengado=salarioPeriodo+auxT+extras+bonos;
+    const salud=emp.salario*SALUD_EMP;
+    const pension=emp.salario*PENSION_EMP;
+    const deducido=salud+pension;
+    const neto=devengado-deducido;
+    tDev+=devengado; tDed+=deducido; tNet+=neto;
+    rows.push({emp,dias,salarioPeriodo,extras,bonos,devengado,salud,pension,deducido,neto});
+  }
+  document.getElementById('preview-summary').innerHTML=`
+    <div class="summary-item"><div class="summary-label">Empleados</div><div class="summary-value blue">${rows.length}</div></div>
+    <div class="summary-item"><div class="summary-label">Total devengado</div><div class="summary-value green">${fmt(tDev)}</div></div>
+    <div class="summary-item"><div class="summary-label">Total deducido</div><div class="summary-value red">${fmt(tDed)}</div></div>
+    <div class="summary-item"><div class="summary-label">Total neto a pagar</div><div class="summary-value green">${fmt(tNet)}</div></div>`;
+  document.getElementById('preview-body').innerHTML=rows.map(r=>`<tr>
+    <td>${r.emp.nombre}</td>
+    <td class="text-mono">${fmt(r.emp.salario)}</td>
+    <td>${r.dias}</td>
+    <td class="text-mono">${fmt(r.extras)}</td>
+    <td class="text-mono">${fmt(r.bonos)}</td>
+    <td class="text-mono" style="color:var(--accent3)">${fmt(r.devengado)}</td>
+    <td class="text-mono" style="color:var(--danger)">${fmt(r.salud)}</td>
+    <td class="text-mono" style="color:var(--danger)">${fmt(r.pension)}</td>
+    <td class="text-mono" style="color:var(--danger)">${fmt(r.deducido)}</td>
+    <td class="text-mono" style="color:var(--accent3);font-weight:600">${fmt(r.neto)}</td>
+  </tr>`).join('');
+  document.getElementById('preview-nomina').style.display='block';
+  document.getElementById('btn-liquidar').style.display='inline-block';
+  window._nominaPreview={rows,tDev,tDed,tNet};
+}
+
+async function liquidarNomina(){
+  if(!window._nominaPreview){toast('Primero genera la vista previa','error'); return;}
+  const nombre=document.getElementById('per-nombre').value.trim()||'Período sin nombre';
+  const {rows,tDev,tDed,tNet}=window._nominaPreview;
+  const payload={
+    nombre,
+    tipo:document.getElementById('per-tipo').value,
+    fecha_inicio:document.getElementById('per-inicio').value,
+    fecha_fin:document.getElementById('per-fin').value,
+    fecha_pago:document.getElementById('per-pago').value||null,
+    total_empleados:rows.length,
+    total_devengado:Math.round(tDev),
+    total_deducido:Math.round(tDed),
+    total_neto:Math.round(tNet),
+    estado:'Liquidado',
+    detalle:JSON.stringify(rows.map(r=>({emp_id:r.emp.id,nombre:r.emp.nombre,devengado:Math.round(r.devengado),deducido:Math.round(r.deducido),neto:Math.round(r.neto)})))
+  };
+  const {error}=await db.from('periodos_nomina').insert([payload]);
+  if(error){toast('Error: '+error.message,'error'); return;}
+  toast('Nómina liquidada ✅','success'); closeModal('modal-periodo');
+  document.getElementById('preview-nomina').style.display='none';
+  document.getElementById('btn-liquidar').style.display='none';
+  window._nominaPreview=null; loadPeriodos(); loadDashboard();
+}
+
+async function verDesprendible(id){
+  const {data}=await db.from('periodos_nomina').select('*').eq('id',id).single();
+  if(!data){toast('No se encontró el período','error'); return;}
+  let detalle=[]; try{ detalle=JSON.parse(data.detalle||'[]'); }catch(e){}
+  let html=`<div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+      <div><h3 style="font-size:16px;font-weight:700;margin-bottom:4px">${data.nombre}</h3>
+      <p style="font-size:13px;color:var(--text-muted)">Período: ${fmtDate(data.fecha_inicio)} — ${fmtDate(data.fecha_fin)} | Pago: ${fmtDate(data.fecha_pago)}</p></div>
+      <span class="badge badge-green">${data.estado}</span></div>
+    <div class="summary-row">
+      <div class="summary-item"><div class="summary-label">Empleados</div><div class="summary-value blue">${data.total_empleados}</div></div>
+      <div class="summary-item"><div class="summary-label">Devengado</div><div class="summary-value green">${fmt(data.total_devengado)}</div></div>
+      <div class="summary-item"><div class="summary-label">Deducido</div><div class="summary-value red">${fmt(data.total_deducido)}</div></div>
+      <div class="summary-item"><div class="summary-label">Neto</div><div class="summary-value green">${fmt(data.total_neto)}</div></div>
+    </div></div>`;
+  if(detalle.length){
+    html+=`<div class="table-wrap"><table><thead><tr><th>Empleado</th><th>Devengado</th><th>Deducido</th><th>Neto</th></tr></thead><tbody>
+    ${detalle.map(d=>`<tr><td>${d.nombre}</td><td class="text-mono">${fmt(d.devengado)}</td><td class="text-mono" style="color:var(--danger)">${fmt(d.deducido)}</td><td class="text-mono" style="color:var(--accent3);font-weight:600">${fmt(d.neto)}</td></tr>`).join('')}
+    </tbody></table></div>`;
+  }
+  document.getElementById('desprendible-content').innerHTML=html;
+  openModal('modal-desprendible');
+}
+function printDesprendible(){ window.print(); }
+async function deletePeriodo(id){
+  if(!confirm('¿Eliminar este período de nómina?')) return;
+  await db.from('periodos_nomina').delete().eq('id',id);
+  toast('Período eliminado','info'); loadPeriodos();
+}
+
+// ─────────────────────────────────────────────
+// LIQUIDACIÓN CONTRATOS
+// ─────────────────────────────────────────────
+let _lcData=null;
+async function loadContratos(){
+  const {data,error}=await db.from('liquidaciones_contrato').select('*,empleados(nombre,fecha_ingreso)').order('id',{ascending:false});
+  if(error){toast('Error contratos','error'); return;}
+  const tbody=document.getElementById('contratos-body');
+  if(!data||!data.length){tbody.innerHTML=emptyRow(10,'📄','Sin liquidaciones','Registra la primera liquidación'); return;}
+  tbody.innerHTML=data.map(l=>`<tr>
+    <td><strong>${l.empleados?.nombre||'—'}</strong></td>
+    <td>${fmtDate(l.empleados?.fecha_ingreso)}</td>
+    <td>${fmtDate(l.fecha_retiro)}</td>
+    <td class="text-mono">${fmt(l.prima)}</td>
+    <td class="text-mono">${fmt(l.cesantias)}</td>
+    <td class="text-mono">${fmt(l.int_cesantias)}</td>
+    <td class="text-mono">${fmt(l.vacaciones)}</td>
+    <td class="text-mono" style="color:var(--accent3);font-weight:600">${fmt(l.total_liquidacion)}</td>
+    <td>${estadoBadge(l.estado||'Pendiente')}</td>
+    <td><button class="btn-danger-sm" onclick="deleteLiqContrato(${l.id})">🗑</button></td>
+  </tr>`).join('');
+}
+async function openModalLiqContrato(){
+  const {data}=await db.from('empleados').select('id,nombre,salario,fecha_ingreso').eq('estado','Activo');
+  const sel=document.getElementById('lc-empleado');
+  sel.innerHTML=data?.length?data.map(e=>`<option value="${e.id}" data-sal="${e.salario}" data-ing="${e.fecha_ingreso}">${e.nombre}</option>`).join(''):'<option>Sin empleados</option>';
+  document.getElementById('lc-fecha-retiro').value=new Date().toISOString().slice(0,10);
+  document.getElementById('lc-preview').style.display='none';
+  document.getElementById('btn-guardar-liq').style.display='none';
+  openModal('modal-liq-contrato');
+}
+async function calcLiqContrato(){
+  const sel=document.getElementById('lc-empleado');
+  const opt=sel.options[sel.selectedIndex];
+  if(!opt||!opt.dataset.ing) return;
+  const salario=parseFloat(opt.dataset.sal)||SMLV;
+  const ingreso=new Date(opt.dataset.ing+'T12:00:00');
+  const retiro=new Date((document.getElementById('lc-fecha-retiro').value||new Date().toISOString().slice(0,10))+'T12:00:00');
+  const dias=Math.max(0,Math.round((retiro-ingreso)/(1000*60*60*24)));
+  const anios=dias/365;
+  const base=salario;
+  const prima=Math.round(base*(dias/360));
+  const cesantias=Math.round(base*(dias/360));
+  const int_cesantias=Math.round(cesantias*0.12*(dias/365));
+  const vacaciones=Math.round((base/2)*(dias/365));
+  const total=prima+cesantias+int_cesantias+vacaciones;
+  _lcData={emp_id:parseInt(sel.value),fecha_retiro:document.getElementById('lc-fecha-retiro').value,motivo:document.getElementById('lc-motivo').value,dias,prima,cesantias,int_cesantias,vacaciones,total_liquidacion:total};
+  document.getElementById('lc-summary').innerHTML=`
+    <div class="summary-item"><div class="summary-label">Días laborados</div><div class="summary-value blue">${dias}</div></div>
+    <div class="summary-item"><div class="summary-label">Salario base</div><div class="summary-value">${fmt(base)}</div></div>
+    <div class="summary-item"><div class="summary-label">Total liquidación</div><div class="summary-value green">${fmt(total)}</div></div>`;
+  document.getElementById('lc-detalle').innerHTML=`
+    <tr><td style="padding:10px 18px">Prima de servicios</td><td>${Math.round(dias/2)}</td><td>${fmt(base)}</td><td class="text-mono">${fmt(prima)}</td></tr>
+    <tr><td style="padding:10px 18px">Cesantías</td><td>${dias}</td><td>${fmt(base)}</td><td class="text-mono">${fmt(cesantias)}</td></tr>
+    <tr><td style="padding:10px 18px">Intereses a cesantías (12%)</td><td>${dias}</td><td>${fmt(cesantias)}</td><td class="text-mono">${fmt(int_cesantias)}</td></tr>
+    <tr><td style="padding:10px 18px">Vacaciones en dinero</td><td>${dias}</td><td>${fmt(base/2)}</td><td class="text-mono">${fmt(vacaciones)}</td></tr>`;
+  document.getElementById('lc-total').textContent=fmt(total);
+  document.getElementById('lc-preview').style.display='block';
+  document.getElementById('btn-guardar-liq').style.display='inline-block';
+}
+async function guardarLiqContrato(){
+  if(!_lcData){toast('Primero calcula la liquidación','error'); return;}
+  const {error}=await db.from('liquidaciones_contrato').insert([{..._lcData,estado:'Liquidado'}]);
+  if(error){toast('Error: '+error.message,'error'); return;}
+  // marcar empleado como inactivo
+  await db.from('empleados').update({estado:'Inactivo'}).eq('id',_lcData.emp_id);
+  toast('Liquidación guardada ✅','success'); closeModal('modal-liq-contrato');
+  _lcData=null; loadContratos(); loadEmpleados(); loadDashboard();
+}
+async function deleteLiqContrato(id){
+  if(!confirm('¿Eliminar esta liquidación?')) return;
+  await db.from('liquidaciones_contrato').delete().eq('id',id);
+  toast('Eliminada','info'); loadContratos();
+}
+
+// ─────────────────────────────────────────────
+// SEGURIDAD SOCIAL
+// ─────────────────────────────────────────────
+async function loadSeguridad(){
+  const {data,error}=await db.from('seguridad_social').select('*,empleados(nombre)').order('id',{ascending:false});
+  if(error){toast('Error seguridad social','error'); return;}
+  const tbody=document.getElementById('seguridad-body');
+  if(!data||!data.length){tbody.innerHTML=emptyRow(8,'🛡️','Sin registros','Registra la seguridad social'); return;}
+  tbody.innerHTML=data.map(s=>`<tr>
+    <td><strong>${s.empleados?.nombre||'—'}</strong></td>
+    <td>${s.eps}</td><td>${s.arl}</td><td>${s.caja}</td><td>${s.pension||'—'}</td>
+    <td>${fmtDate(s.fecha_afiliacion)}</td>
+    <td>${estadoBadge(s.estado||'Activo')}</td>
+    <td><button class="btn-danger-sm" onclick="deleteSeguridad(${s.id})">🗑</button></td>
+  </tr>`).join('');
+}
+async function openModalSeguridad(){
+  const {data}=await db.from('empleados').select('id,nombre').eq('estado','Activo');
+  const sel=document.getElementById('seg-empleado');
+  sel.innerHTML=data?.length?data.map(e=>`<option value="${e.id}">${e.nombre}</option>`).join(''):'<option>Sin empleados</option>';
+  document.getElementById('seg-fecha').value=new Date().toISOString().slice(0,10);
+  openModal('modal-seguridad');
+}
+async function saveSeguridad(){
+  const payload={
+    empleado_id:parseInt(document.getElementById('seg-empleado').value),
+    eps:document.getElementById('seg-eps').value.trim(),
+    arl:document.getElementById('seg-arl').value.trim(),
+    caja:document.getElementById('seg-caja').value.trim(),
+    pension:document.getElementById('seg-pension').value.trim(),
+    fecha_afiliacion:document.getElementById('seg-fecha').value||null,
+    estado:document.getElementById('seg-estado').value
+  };
+  if(!payload.eps||!payload.arl||!payload.caja){toast('EPS, ARL y Caja son obligatorios','error'); return;}
+  const {error}=await db.from('seguridad_social').insert([payload]);
+  if(error){toast('Error: '+error.message,'error'); return;}
+  toast('Seguridad social registrada ✅','success'); closeModal('modal-seguridad'); loadSeguridad();
+}
+async function deleteSeguridad(id){
+  if(!confirm('¿Eliminar registro?')) return;
+  await db.from('seguridad_social').delete().eq('id',id);
+  toast('Eliminado','info'); loadSeguridad();
+}
+
+// ─────────────────────────────────────────────
+// PLANILLA PILA
+// ─────────────────────────────────────────────
+let _pilaData=null;
+async function loadPILA(){
+  const {data,error}=await db.from('planillas_pila').select('*').order('id',{ascending:false});
+  if(error){toast('Error PILA','error'); return;}
+  const tbody=document.getElementById('pila-body');
+  if(!data||!data.length){tbody.innerHTML=emptyRow(9,'📊','Sin planillas','Genera la primera planilla PILA'); return;}
+  tbody.innerHTML=data.map(p=>`<tr>
+    <td><strong>${p.periodo}</strong></td>
+    <td>${p.total_empleados}</td>
+    <td class="text-mono">${fmt(p.total_salud)}</td>
+    <td class="text-mono">${fmt(p.total_pension)}</td>
+    <td class="text-mono">${fmt(p.total_arl)}</td>
+    <td class="text-mono">${fmt(p.total_caja)}</td>
+    <td class="text-mono" style="color:var(--accent3);font-weight:600">${fmt(p.total_aportes)}</td>
+    <td>${estadoBadge(p.estado||'Generada')}</td>
+    <td><button class="btn-danger-sm" onclick="deletePILA(${p.id})">🗑</button></td>
+  </tr>`).join('');
+}
+async function generarPILA(){
+  const anio=document.getElementById('pila-anio').value;
+  const mes=document.getElementById('pila-mes').value;
+  if(!anio){toast('Define el año','error'); return;}
+  const {data:emps}=await db.from('empleados').select('*').eq('estado','Activo');
+  if(!emps||!emps.length){toast('No hay empleados activos','error'); return;}
+  const rows=[]; let tSalud=0,tPension=0,tARL=0,tCaja=0,tTotal=0;
+  const ARL_PCT=0.00522;
+  for(const emp of emps){
+    const ibc=Math.max(emp.salario,SMLV);
+    const salud=Math.round(ibc*0.125);
+    const pension=Math.round(ibc*0.16);
+    const arl=Math.round(ibc*ARL_PCT);
+    const caja=Math.round(ibc*0.04);
+    const total=salud+pension+arl+caja;
+    tSalud+=salud; tPension+=pension; tARL+=arl; tCaja+=caja; tTotal+=total;
+    rows.push({emp,ibc,salud,pension,arl,caja,total});
+  }
+  _pilaData={periodo:`${anio}-${mes.toString().padStart(2,'0')}`,rows,tSalud,tPension,tARL,tCaja,tTotal};
+  document.getElementById('pila-summary').innerHTML=`
+    <div class="summary-item"><div class="summary-label">Empleados</div><div class="summary-value blue">${rows.length}</div></div>
+    <div class="summary-item"><div class="summary-label">Total salud</div><div class="summary-value">${fmt(tSalud)}</div></div>
+    <div class="summary-item"><div class="summary-label">Total pensión</div><div class="summary-value">${fmt(tPension)}</div></div>
+    <div class="summary-item"><div class="summary-label">Total aportes</div><div class="summary-value green">${fmt(tTotal)}</div></div>`;
+  document.getElementById('pila-detalle').innerHTML=rows.map(r=>`<tr>
+    <td>${r.emp.nombre}</td>
+    <td class="text-mono">${r.emp.cedula||'—'}</td>
+    <td class="text-mono">${fmt(r.ibc)}</td>
+    <td class="text-mono">${fmt(r.salud)}</td>
+    <td class="text-mono">${fmt(r.pension)}</td>
+    <td class="text-mono">${fmt(r.arl)}</td>
+    <td class="text-mono">${fmt(r.caja)}</td>
+    <td class="text-mono" style="font-weight:600;color:var(--accent3)">${fmt(r.total)}</td>
+  </tr>`).join('');
+  document.getElementById('pila-preview').style.display='block';
+  document.getElementById('btn-guardar-pila').style.display='inline-block';
+}
+async function guardarPILA(){
+  if(!_pilaData){toast('Primero genera el cálculo','error'); return;}
+  const {rows,periodo,tSalud,tPension,tARL,tCaja,tTotal}=_pilaData;
+  const payload={periodo,total_empleados:rows.length,total_salud:Math.round(tSalud),total_pension:Math.round(tPension),total_arl:Math.round(tARL),total_caja:Math.round(tCaja),total_aportes:Math.round(tTotal),estado:'Generada'};
+  const {error}=await db.from('planillas_pila').insert([payload]);
+  if(error){toast('Error: '+error.message,'error'); return;}
+  toast('Planilla PILA guardada ✅','success'); closeModal('modal-pila');
+  _pilaData=null; document.getElementById('pila-preview').style.display='none'; document.getElementById('btn-guardar-pila').style.display='none';
+  loadPILA();
+}
+async function deletePILA(id){
+  if(!confirm('¿Eliminar planilla?')) return;
+  await db.from('planillas_pila').delete().eq('id',id);
+  toast('Eliminada','info'); loadPILA();
+}
+
+// ─────────────────────────────────────────────
+// RETIRO
+// ─────────────────────────────────────────────
+async function loadRetiro(){
+  const {data,error}=await db.from('retiros').select('*,empleados(nombre)').order('id',{ascending:false});
+  if(error){toast('Error retiro','error'); return;}
+  const tbody=document.getElementById('retiro-body');
+  if(!data||!data.length){tbody.innerHTML=emptyRow(8,'🚪','Sin retiros','Registra el primer proceso de retiro'); return;}
+  tbody.innerHTML=data.map(r=>`<tr>
+    <td><strong>${r.empleados?.nombre||'—'}</strong></td>
+    <td><span class="badge badge-orange">${r.motivo}</span></td>
+    <td>${fmtDate(r.fecha_retiro)}</td>
+    <td>${estadoBadge(r.carta_notificacion==='Sí'?'Activo':'Inactivo')}</td>
+    <td><span class="badge ${r.examen_retiro==='Realizado'?'badge-green':'badge-yellow'}">${r.examen_retiro}</span></td>
+    <td><span class="badge ${r.dotacion_devuelta==='Completo'?'badge-green':r.dotacion_devuelta==='Parcial'?'badge-yellow':'badge-red'}">${r.dotacion_devuelta}</span></td>
+    <td><span class="badge ${r.certificacion_laboral==='Emitida'?'badge-green':'badge-yellow'}">${r.certificacion_laboral}</span></td>
+    <td><button class="btn-danger-sm" onclick="deleteRetiro(${r.id})">🗑</button></td>
+  </tr>`).join('');
+}
+async function saveRetiro(){
+  const {data}=await db.from('empleados').select('id,nombre').eq('estado','Activo');
+  if(!document.querySelector('#modal-retiro select')) return;
+  // The modal is already open; get values
+  const payload={
+    empleado_id:parseInt(document.getElementById('ret-empleado').value),
+    motivo:document.getElementById('ret-motivo').value,
+    fecha_retiro:document.getElementById('ret-fecha').value,
+    carta_notificacion:document.getElementById('ret-carta').value,
+    examen_retiro:document.getElementById('ret-examen').value,
+    dotacion_devuelta:document.getElementById('ret-dotacion').value,
+    certificacion_laboral:document.getElementById('ret-cert').value,
+    observaciones:document.getElementById('ret-obs').value.trim()
+  };
+  if(!payload.empleado_id||!payload.fecha_retiro){toast('Empleado y fecha son obligatorios','error'); return;}
+  const {error}=await db.from('retiros').insert([payload]);
+  if(error){toast('Error: '+error.message,'error'); return;}
+  toast('Retiro registrado ✅','success'); closeModal('modal-retiro'); loadRetiro(); loadDashboard();
+}
+async function deleteRetiro(id){
+  if(!confirm('¿Eliminar registro de retiro?')) return;
+  await db.from('retiros').delete().eq('id',id);
+  toast('Eliminado','info'); loadRetiro();
+}
+// Populate retiro empleado select when modal opens
+document.getElementById('modal-retiro').addEventListener('click', async function(e){
+  if(e.target===this && !this.classList.contains('_loaded')){
+    const {data}=await db.from('empleados').select('id,nombre').eq('estado','Activo');
+    const sel=document.getElementById('ret-empleado');
+    if(sel) sel.innerHTML=data?.length?data.map(x=>`<option value="${x.id}">${x.nombre}</option>`).join(''):'<option>Sin empleados</option>';
+  }
+});
+// Also load on btn click
+const origOpenRetiro=document.querySelector('[onclick="openModal(\'modal-retiro\')"]');
+if(origOpenRetiro){
+  origOpenRetiro.addEventListener('click',async()=>{
+    const {data}=await db.from('empleados').select('id,nombre').eq('estado','Activo');
+    const sel=document.getElementById('ret-empleado');
+    if(sel) sel.innerHTML=data?.length?data.map(x=>`<option value="${x.id}">${x.nombre}</option>`).join(''):'<option>Sin empleados</option>';
+    document.getElementById('ret-fecha').value=new Date().toISOString().slice(0,10);
+  });
+}
+
+// ─────────────────────────────────────────────
+// CAPACITACIÓN
+// ─────────────────────────────────────────────
+async function loadCapacitacion(){
+  const {data,error}=await db.from('capacitaciones').select('*').order('id',{ascending:false});
+  if(error){toast('Error capacitación','error'); return;}
+  const tbody=document.getElementById('cap-body');
+  if(!data||!data.length){tbody.innerHTML=emptyRow(8,'📚','Sin capacitaciones','Registra la primera capacitación'); return;}
+  tbody.innerHTML=data.map(c=>`<tr>
+    <td><strong>${c.tema}</strong></td>
+    <td><span class="badge badge-blue">${c.tipo}</span></td>
+    <td>${fmtDate(c.fecha)}</td>
+    <td>${c.instructor||'—'}</td>
+    <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.asistentes||'—'}</td>
+    <td>${estadoBadge(c.eficacia||'Pendiente')}</td>
+    <td>${estadoBadge(c.estado)}</td>
+    <td><button class="btn-danger-sm" onclick="deleteCap(${c.id})">🗑</button></td>
+  </tr>`).join('');
+}
+async function savePlanCap(){
+  const payload={
+    tema:document.getElementById('pc-tema').value.trim(),
+    tipo:'Plan anual',
+    fecha:document.getElementById('pc-fecha').value||null,
+    instructor:'Por definir',
+    asistentes:'Todo el personal',
+    eficacia:document.getElementById('pc-eficacia').value==='Sí'?'Pendiente':'No aplica',
+    estado:'Programada',
+    observaciones:`Origen: ${document.getElementById('pc-origen').value} | Metodología: ${document.getElementById('pc-metodo').value}`
+  };
+  if(!payload.tema){toast('El tema es obligatorio','error'); return;}
+  const {error}=await db.from('capacitaciones').insert([payload]);
+  if(error){toast('Error: '+error.message,'error'); return;}
+  toast('Plan de capacitación guardado ✅','success'); closeModal('modal-plan-cap'); loadCapacitacion();
+}
+async function saveCapacitacion(){
+  const payload={
+    tema:document.getElementById('cap-tema').value.trim(),
+    tipo:document.getElementById('cap-tipo').value,
+    fecha:document.getElementById('cap-fecha').value||null,
+    instructor:document.getElementById('cap-instructor').value.trim(),
+    asistentes:document.getElementById('cap-asistentes').value.trim(),
+    eficacia:document.getElementById('cap-eficacia').value,
+    estado:document.getElementById('cap-estado').value,
+    observaciones:document.getElementById('cap-obs').value.trim()
+  };
+  if(!payload.tema){toast('El tema es obligatorio','error'); return;}
+  const {error}=await db.from('capacitaciones').insert([payload]);
+  if(error){toast('Error: '+error.message,'error'); return;}
+  toast('Capacitación registrada ✅','success'); closeModal('modal-capacitacion'); loadCapacitacion();
+}
+async function deleteCap(id){
+  if(!confirm('¿Eliminar capacitación?')) return;
+  await db.from('capacitaciones').delete().eq('id',id);
+  toast('Eliminada','info'); loadCapacitacion();
+}
+
+// ─────────────────────────────────────────────
+// EVALUACIÓN DESEMPEÑO
+// ─────────────────────────────────────────────
+let allEval=[];
+async function loadEval(){
+  const {data,error}=await db.from('evaluaciones_desempeno').select('*,empleados(nombre)').order('id',{ascending:false});
+  if(error){toast('Error evaluaciones','error'); return;}
+  allEval=data||[];
+  renderEval(allEval);
+}
+function renderEval(data){
+  const tbody=document.getElementById('eval-body');
+  if(!data||!data.length){tbody.innerHTML=emptyRow(8,'⭐','Sin evaluaciones','Registra la primera evaluación'); return;}
+  tbody.innerHTML=data.map(e=>`<tr>
+    <td><strong>${e.empleados?.nombre||'—'}</strong></td>
+    <td><span class="badge badge-blue">${e.tipo}</span></td>
+    <td><span style="font-size:18px">${'★'.repeat(e.calificacion||0)}${'☆'.repeat(5-(e.calificacion||0))}</span></td>
+    <td>${fmtDate(e.fecha_evaluacion)}</td>
+    <td>${e.evaluador||'—'}</td>
+    <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.compromisos||'—'}</td>
+    <td>${estadoBadge(e.estado)}</td>
+    <td><button class="btn-danger-sm" onclick="deleteEval(${e.id})">🗑</button></td>
+  </tr>`).join('');
+}
+function filterEval(tipo,el){
+  document.querySelectorAll('#section-desempeno .tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderEval(tipo==='Todos'?allEval:allEval.filter(e=>tipo==='Pendiente'?e.estado===tipo:e.tipo===tipo));
+}
+async function openModalEval(){
+  const {data}=await db.from('empleados').select('id,nombre').eq('estado','Activo');
+  const sel=document.getElementById('eval-empleado');
+  sel.innerHTML=data?.length?data.map(e=>`<option value="${e.id}">${e.nombre}</option>`).join(''):'<option>Sin empleados</option>';
+  document.getElementById('eval-fecha').value=new Date().toISOString().slice(0,10);
+  document.getElementById('eval-calificacion').value='0';
+  document.querySelectorAll('.star').forEach(s=>s.textContent='☆');
+  openModal('modal-eval');
+}
+function setEvalStar(n){
+  document.getElementById('eval-calificacion').value=n;
+  document.querySelectorAll('.star').forEach(s=>{ s.textContent=parseInt(s.dataset.v)<=n?'★':'☆'; });
+}
+async function saveEval(){
+  const payload={
+    empleado_id:parseInt(document.getElementById('eval-empleado').value),
+    tipo:document.getElementById('eval-tipo').value,
+    calificacion:parseInt(document.getElementById('eval-calificacion').value)||0,
+    fecha_evaluacion:document.getElementById('eval-fecha').value,
+    evaluador:document.getElementById('eval-evaluador').value.trim(),
+    fortalezas:document.getElementById('eval-fortalezas').value.trim(),
+    compromisos:document.getElementById('eval-compromisos').value.trim(),
+    estado:document.getElementById('eval-estado').value
+  };
+  if(!payload.empleado_id){toast('Selecciona un empleado','error'); return;}
+  if(!payload.calificacion){toast('Asigna una calificación','error'); return;}
+  const {error}=await db.from('evaluaciones_desempeno').insert([payload]);
+  if(error){toast('Error: '+error.message,'error'); return;}
+  toast('Evaluación guardada ✅','success'); closeModal('modal-eval'); loadEval(); loadDashboard();
+}
+async function deleteEval(id){
+  if(!confirm('¿Eliminar evaluación?')) return;
+  await db.from('evaluaciones_desempeno').delete().eq('id',id);
+  toast('Eliminada','info'); loadEval(); loadDashboard();
+}
+</script>
+</body>
+</html>
